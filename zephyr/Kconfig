@@ -40,6 +40,10 @@ config WX_BLE_ZEPHYR
 	  display-only passkey pairing. Set BT_MAX_PAIRED=2, BT_MAX_CONN=1 and
 	  BT_ATT_PREPARE_COUNT=6 (long writes at the minimum MTU).
 
+	  A third bond replaces the least recently used one (BT_KEYS_OVERWRITE_OLDEST
+	  ages keys on use). Leave BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING off: it
+	  would make that the oldest paired instead.
+
 config WX_POWER
 	bool "Power manager"
 	help

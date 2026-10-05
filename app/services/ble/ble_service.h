@@ -15,7 +15,8 @@
  *   - Long-press BAND: 2-minute connect window, bonded phones only.
  *   - BAND + STBY: 60-second pairing window, passkey on the screen. With
  *     BLE_MAX_BONDS bonds already, the radio first asks to replace the
- *     oldest; the stack replaces it when the new phone bonds.
+ *     least recently used phone; the stack replaces it when the new phone
+ *     bonds.
  *   - Confirmations: long-press STBY confirms; any other key, or
  *     BLE_CONFIRM_MS, cancels. Keys are ignored while the lock is on.
  *   - The 32 MHz crystal is requested from the power manager while a window
@@ -61,7 +62,7 @@ enum ble_screen {
 	BLE_SCREEN_CONNECT,       /* connect window open */
 	BLE_SCREEN_PAIRING,       /* pairing window open, no passkey yet */
 	BLE_SCREEN_PASSKEY,       /* show the 6-digit passkey */
-	BLE_SCREEN_CONFIRM_BOND,  /* "replace the oldest phone?" */
+	BLE_SCREEN_CONFIRM_BOND,  /* "replace the least recently used phone?" */
 	BLE_SCREEN_CONFIRM_RESET, /* "factory reset?" */
 };
 

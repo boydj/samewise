@@ -17,7 +17,7 @@ Done when every test below passes in CI, `docs/gatt.json` is generated from the 
    - Advertising off by default.
    - Long-press BAND opens a 2-minute connect window restricted to bonded phones by the filter accept list.
    - BAND + STBY opens a 60-second pairing window: LE Secure Connections, display-only, passkey on a `ui_model` screen.
-   - At most 2 bonds; a third replaces the oldest after on-screen confirmation.
+   - At most 2 bonds; a third replaces the least recently used after on-screen confirmation.
    - Request the 32 MHz crystal from the power manager when a window opens; release it on close or disconnect.
 6. **Control.** Test alert (runs the alert patterns, logged as a test), clear log, and factory reset, which waits for confirmation on the radio.
 7. **Firmware updates.** Enable the MCUmgr SMP service with LE Secure Connections permissions. Image upload and swap are tested on hardware later; here only prove that unbonded access is refused.
@@ -47,7 +47,7 @@ Bluetooth on nrf52_bsim:
 - [x] Pairing fails outside the window; succeeds inside it with the right passkey; fails with a wrong one
 - [x] An unbonded central is refused on every custom characteristic and on SMP
 - [x] A bonded central reconnects inside the connect window and not outside it
-- [x] A third bond needs on-screen confirmation and replaces the oldest
+- [x] A third bond needs on-screen confirmation and replaces the least recently used
 - [x] A 16-county list writes and reads back intact
 - [x] Status notifies on battery and signal changes; Alert log notifies on a new alert
 - [x] Writing Time sets the clock and local time

@@ -429,6 +429,32 @@ static void encrypt(void)
 		    "bonded link never reached LESC level 4");
 }
 
+static void key(enum hal_input_event_type type, uint32_t keys, uint8_t want_screen);
+
+/* A bonded phone in the connect window (opened now, or still open). */
+static void reconnect_bonded(void)
+{
+	key(HAL_INPUT_LONG_PRESS, HAL_INPUT_KEY_BAND, BLE_SCREEN_CONNECT);
+	TEST_ASSERT(scan_for(3000), "connect window not advertising");
+	TEST_ASSERT(connect_radio(), "bonded phone refused in the connect window");
+	encrypt();
+}
+
+/*
+ * A phone whose bond was replaced, in the connect window. Our controller
+ * reports a connection as soon as it sends the request; the radio's accept
+ * list ignores it, so the link fails to establish.
+ */
+static void refused_by_accept_list(void)
+{
+	key(HAL_INPUT_LONG_PRESS, HAL_INPUT_KEY_BAND, BLE_SCREEN_CONNECT);
+	TEST_ASSERT(scan_for(3000), "connect window not advertising");
+	if (connect_radio()) {
+		TEST_ASSERT(wait_flag(&disconnected_flag, 5000), "a replaced bond reconnected");
+	}
+	TEST_ASSERT(!(radio_ask(LINK_QUERY, 0, 0).a & LINK_CONNECTED), "the radio accepted a replaced bond");
+}
+
 static void key(enum hal_input_event_type type, uint32_t keys, uint8_t want_screen)
 {
 	struct link_msg s = radio_ask(LINK_KEY, (uint8_t)type, (uint16_t)keys);
@@ -625,23 +651,23 @@ static void test_phone1_main(void)
 	}
 	TEST_ASSERT(radio_ask(LINK_QUERY, 0, 0).e == 1, "the radio lost its bond");
 
-	/* Phones 2 and 3: the third bond replaces the oldest (this one). */
+	/*
+	 * The third bond replaces the least recently used one. Phone 1 paired
+	 * first but reconnects after phone 2 pairs, so phone 3 replaces phone 2.
+	 */
 	go(DEV_PHONE2);
 	wait_go(DEV_PHONE2);
+	reconnect_bonded();
+	disconnect();
 	go(DEV_PHONE3);
 	wait_go(DEV_PHONE3);
-	key(HAL_INPUT_LONG_PRESS, HAL_INPUT_KEY_BAND, BLE_SCREEN_CONNECT);
-	TEST_ASSERT(scan_for(3000), "connect window not advertising");
-	/*
-	 * Our controller reports a connection as soon as it sends the request;
-	 * the radio's accept list ignores it, so the link fails to establish.
-	 */
-	if (connect_radio()) {
-		TEST_ASSERT(wait_flag(&disconnected_flag, 5000), "a replaced bond reconnected");
-	}
-	TEST_ASSERT(!(radio_ask(LINK_QUERY, 0, 0).a & LINK_CONNECTED), "the radio accepted phone 1");
+	reconnect_bonded();
+	disconnect();
+	TEST_ASSERT(radio_ask(LINK_QUERY, 0, 0).e == 2, "two bonds after the third pairing");
 
-	/* Phone 3 reconnects in the same window and runs the factory reset. */
+	/* Phone 2 is refused; phone 3 reconnects and runs the factory reset. */
+	go(DEV_PHONE2);
+	wait_go(DEV_PHONE2);
 	go(DEV_PHONE3);
 	wait_go(DEV_PHONE3);
 	s = radio_ask(LINK_QUERY, 0, 0);
@@ -688,6 +714,11 @@ static void test_phone2_main(void)
 	}
 	disconnect();
 	go(DEV_PHONE1);
+
+	/* Phone 1 reconnected since, so phone 3's bond replaced this one. */
+	wait_go(DEV_PHONE1);
+	refused_by_accept_list();
+	go(DEV_PHONE1);
 	TEST_PASS("phone 2");
 }
 
@@ -733,9 +764,7 @@ static void test_phone3_main(void)
 
 	/* Factory reset: waits for the radio; another key cancels; long STBY confirms. */
 	wait_go(DEV_PHONE1);
-	TEST_ASSERT(scan_for(3000), "connect window closed");
-	TEST_ASSERT(connect_radio(), "bonded phone 3 refused");
-	encrypt();
+	reconnect_bonded();
 	discover(true);
 	subscribe(WX_GATT_CHR_CONTROL, BT_GATT_CCC_INDICATE);
 	control(CODEC_CMD_FACTORY_RESET, 0, 0, CODEC_CTRL_AWAITING_CONFIRMATION);
@@ -758,7 +787,7 @@ static const struct bst_test_instance test_phone[] = {
 	},
 	{
 		.test_id = "phone2",
-		.test_descr = "Phone 2: the second bond",
+		.test_descr = "Phone 2: the second bond, replaced as the least recently used",
 		.test_main_f = test_phone2_main,
 	},
 	{

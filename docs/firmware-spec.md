@@ -73,7 +73,7 @@ Connection rules:
 - Advertising is off by default, so the 32 MHz crystal and its harmonics stay off.
 - Long-press BAND opens a 2-minute connect window that only bonded phones can use (filter accept list).
 - BAND + STBY opens a 60-second pairing window: LE Secure Connections, passkey shown on the LCD, the radio acting as display-only.
-- At most 2 bonds; pairing a third replaces the oldest after on-screen confirmation.
+- At most 2 bonds; pairing a third replaces the least recently used phone after on-screen confirmation.
 - On connect, the app writes Time, and in travel mode also Travel counties.
 - Confirmations on the radio (third bond, factory reset): long-press STBY confirms; any other key, 30 seconds, or (for a reset) the phone disconnecting cancels.
 - Keys open windows only from Standby or Listening with the lock off; a press that silences an alert does nothing else. One connection at a time.
