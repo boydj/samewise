@@ -81,9 +81,9 @@ An alert fires only after a header is decoded, voted across its copies, matched 
 
 1. **Tone detection.** Sliding one-bit correlators at 2,083.3 Hz (mark) and 1,562.5 Hz (space) over 20-sample windows; the bit is the sign of the energy difference.
 2. **Bit sync.** Lock on the 16-byte 0xAB preamble, then nudge timing at each mark-space transition.
-3. **Framing.** 8-bit bytes, least significant bit first; collect until the header's closing dash, or NNNN for end of message.
-4. **Voting.** Hold up to 3 copies of a header; majority-vote each byte position, and accept 2 matching copies if the third is lost.
-5. **Parsing.** ZCZC, originator, 3-letter event code, up to 31 location codes, purge time, issue time (Julian day, UTC) and station ID. Reject anything malformed.
+3. **Framing.** 8-bit bytes, least significant bit first; collect until the header's closing dash, or NNNN for end of message. Keep only the low 7 bits of each character: 47 CFR 11.31 sends 7-bit ASCII with an eighth null bit that may be 0 or 1. A header copy also ends when the carrier drops or at 252 characters, the longest valid header.
+4. **Voting.** Hold up to 3 copies of a header; majority-vote each byte position, and accept 2 matching copies if the third is lost. One copy alone is never accepted. Vote after the third copy, or once 5 seconds pass after the latest copy with no new copy arriving (initial value; tune with recordings). End of message needs only one NNNN copy (at least 3 of its 4 characters); copies within 5 seconds of each other are one event, and a pending header is voted first so events stay in broadcast order.
+5. **Parsing.** ZCZC, originator, 3-letter event code, 1 to 31 location codes, purge time, issue time (Julian day, UTC) and station ID. Reject anything malformed: fixed field lengths, upper-case letters in the originator and event code, digits in location, purge and issue fields, Julian day 001–366, hour 00–23, minute 00–59, and a station ID of 8 printable characters other than '-'. Purge time needs only 4 digits with minutes 00–59; nonstandard increments are accepted so a warning is never dropped over them.
 6. **Matching.** A location matches when its state and county match a configured code. Subdivision digit 0 means the whole county, and county 000 means the whole state. Travel mode with no travel counties accepts every location from the current transmitter.
 7. **Filtering.** Event class comes from the event table. Default: warnings and watches alert; weekly and monthly tests (RWT, RMT) never alert but are logged for the health check; everything else is logged only.
 8. **Duplicates.** Suppress repeats with the same originator, event, locations, issue time and station until the purge time expires.
@@ -156,7 +156,7 @@ Test audio:
 - **Recordings.** Capture the local weather channel with the RTL-SDR for a month, including at least 4 weekly tests.
 - **Synthetic bursts.** Generate SAME headers in Python with frequency offset up to ±2%, added noise at several SNRs, a missing copy, corrupted bytes, multiple location codes (including 000 and subdivisions) and end-of-message markers.
 - **Negative audio.** Voice-only weather broadcasts, FM music, silence, and the 1050 Hz attention tone alone. Target: zero false alerts across 24 hours of it.
-- Track decode rate against SNR; set pass thresholds after the first recordings.
+- Track decode rate against SNR; set pass thresholds after the first recordings. SNR is AFSK power over white-noise power across the full band (0 to 5.2 kHz at 10,416.67 Hz sampling), so 0 dB is about 10 dB Eb/N0. The table lives in `docs/decoder-snr.md`.
 
 Scenario tests on `native_sim`, run with accelerated time:
 
@@ -186,3 +186,4 @@ The iPhone app is built against a macOS mock peripheral that implements the same
 - [ ] How much current do the buzzer and vibration draw during alerts?
 - [ ] Are 16 counties and 2 bonds the right limits?
 - [ ] What does the initial event table contain? Derive it from the NWS SAME event code list.
+- [ ] Check the decoder's 47 CFR 11.31 details (eighth null bit, purge-time increments, 1-second copy spacing) against the regulation text. They were written from memory because the regulation sites were unreachable from the development container.

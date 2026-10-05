@@ -1,0 +1,2 @@
+# WAV test vectors (RTL-SDR recordings) live in git LFS.
+*.wav filter=lfs diff=lfs merge=lfs -text

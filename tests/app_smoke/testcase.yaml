@@ -1,0 +1,10 @@
+tests:
+  app.smoke:
+    platform_allow: native_sim
+    integration_platforms:
+      - native_sim
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "Pocket WX Radio firmware .*"

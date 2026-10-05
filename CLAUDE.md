@@ -35,10 +35,13 @@ docs/               spec, milestones, decoder reports
 
 ```
 west build -b native_sim app -p auto
-./build/zephyr/zephyr.exe
+./build/app/zephyr/zephyr.exe --stop_at=1
 west twister -T tests -p native_sim
+python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/samegen/samegen.py --help
 ```
+
+Workspace setup (T2 layout, from the directory containing this repo): `west init -l samewise && west update --narrow -o=--depth=1`. Zephyr in the pinned NCS needs Python 3.12 or newer; install `zephyr/scripts/requirements-{base,build-test,run-test}.txt` and `tools/requirements.txt`. `native_sim` needs `gcc-multilib`, and without the Zephyr SDK set `ZEPHYR_TOOLCHAIN_VARIANT=host`. NCS builds use sysbuild by default, so the app binary lands in `build/app/`. Synthetic test vectors are generated into each test's build directory at build time (`tools/vectors/build_vectors.py`); only RTL-SDR recordings are committed (git LFS).
 
 Later targets: `xiao_ble` for the XIAO prototype (confirm the board name for the pinned Zephyr), `nrf52_bsim` for Bluetooth, and a custom `wx_radio` board.
 

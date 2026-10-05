@@ -1,0 +1,33 @@
+# West manifest for the Pocket WX Radio firmware.
+#
+# Pins the nRF Connect SDK. Do not change the revision without asking
+# (see CLAUDE.md). The allowlist keeps the workspace to what the current
+# milestone needs; add modules here as later milestones need them.
+#
+# Workspace setup (from the directory that contains this repository):
+#   west init -l samewise
+#   west update --narrow -o=--depth=1
+
+manifest:
+  version: "1.2"
+
+  remotes:
+    - name: ncs
+      url-base: https://github.com/nrfconnect
+
+  projects:
+    - name: nrf
+      remote: ncs
+      repo-path: sdk-nrf
+      revision: v3.4.1
+      import:
+        name-allowlist:
+          - nrf
+          - zephyr
+          - cmsis_6
+          - hal_nordic
+          - nrfxlib
+          - openthread
+
+  self:
+    path: samewise

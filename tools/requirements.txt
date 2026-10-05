@@ -1,0 +1,3 @@
+# Python packages for tools/samegen and tools/vectors (numpy and scipy only).
+numpy>=1.26
+scipy>=1.11

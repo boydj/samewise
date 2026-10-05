@@ -22,18 +22,20 @@ Done when every test below passes in CI and `docs/decoder-snr.md` holds a decode
 
 ## Tests (ztest on native_sim)
 
-- [ ] Clean header decodes exactly, and the callback fires once
-- [ ] One corrupted byte in one copy is corrected by voting
-- [ ] Only two copies received: still decodes
-- [ ] Only one copy received: not emitted, per the spec (revisit once recordings arrive)
-- [ ] 31 location codes parse correctly
-- [ ] Frequency offsets of −2%, −1%, +1% and +2% decode
-- [ ] SNR sweep from 30 dB down to 0 dB in 3 dB steps writes decode rates to `docs/decoder-snr.md`; initial gate: 100% at 20 dB and above
-- [ ] EOM is detected; a header followed by EOM fires both callbacks in order
-- [ ] The same WAV fed in random block sizes from 1 to 512 samples gives identical results
-- [ ] 10 minutes each of white noise, silence and a 1050 Hz tone produce zero headers
-- [ ] Malformed headers (wrong field lengths, letters in digit fields) are rejected
-- [ ] Two different alerts back to back produce two headers
+- [x] Clean header decodes exactly, and the callback fires once
+- [x] One corrupted byte in one copy is corrected by voting
+- [x] Only two copies received: still decodes
+- [x] Only one copy received: not emitted, per the spec (revisit once recordings arrive)
+- [x] 31 location codes parse correctly
+- [x] Frequency offsets of −2%, −1%, +1% and +2% decode
+- [x] SNR sweep from 30 dB down to 0 dB in 3 dB steps writes decode rates to `docs/decoder-snr.md`; initial gate: 100% at 20 dB and above
+- [x] EOM is detected; a header followed by EOM fires both callbacks in order
+- [x] The same WAV fed in random block sizes from 1 to 512 samples gives identical results
+- [x] 10 minutes each of white noise, silence and a 1050 Hz tone produce zero headers
+- [x] Malformed headers (wrong field lengths, letters in digit fields) are rejected
+- [x] Two different alerts back to back produce two headers
+
+Each item maps to a named test in `tests/same/decoder` (or `tests/same/negative` and `tests/same/snr`); `test_every_vector_matches_its_sidecar` also checks every generated vector against its sidecar.
 
 When RTL-SDR clips arrive in `tools/vectors/recorded/`, add them with sidecars and include them in the suite.
 
