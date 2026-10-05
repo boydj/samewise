@@ -130,7 +130,16 @@ A supervisor thread owns every check that could silently stop alerts, and only i
 | Battery critical | 5% state of charge | Chirp every 30 minutes |
 | Battery empty | 3.3 V cell voltage | Final long beep, ALERTS OFF screen, charger ship mode |
 
-The weekly-test check is the only end-to-end proof that antenna, tuner and decoder work together, so it is never disabled. Signal-quality thresholds come from bring-up measurements.
+The weekly-test check is the only end-to-end proof that antenna, tuner and decoder work together, so it is never disabled. Signal-quality thresholds come from bring-up measurements; until then the no-signal threshold is a configuration value (SNR below 10 dB).
+
+How the checks run:
+
+- The supervisor ticks once a second. It feeds the watchdog only while audio blocks and decoder progress are under 2 seconds old and a valid tuner status is under 10 seconds old. While Listening the tuner is on AM or FM and weather decoding stops, so only the tuner status counts. A stall therefore resets the radio within about 11 seconds.
+- After a watchdog reset the count of such resets is kept in storage, RESTARTED shows for 10 seconds, and the radio resumes standby. The clock and the duplicate list are lost with RAM, as on the real board.
+- A tuner fault (3 consecutive failed or invalid status reads) power-cycles the tuner and re-tunes the last weather frequency. If that doesn't help, the stale tuner status starves the watchdog.
+- No signal is judged only on weather (not while Listening), and any recovery restarts its 10 minutes. No weekly test counts 8 days from boot or the last RWT. Either shows the warning screen with its own reason line and chirps at once, then hourly.
+- Battery is read once a minute. A warning clears when charging or 5 points above its threshold.
+- Chirps never sound over an Alerting or Alert audio state; the warning is still recorded, and the alert outranks it on screen.
 
 ## Power modes and budget
 

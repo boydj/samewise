@@ -42,6 +42,12 @@ config WX_FAKE_AUDIO_OUT
 config WX_FAKE_INPUT
 	bool "input fake: scripted key, lock and headphone events"
 
+config WX_FAKE_TUNER
+	bool "tuner fake: scripted signal and faults, records calls"
+
+config WX_FAKE_BATTERY
+	bool "battery fake: scripted discharge curve, records ship mode"
+
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
 	help
