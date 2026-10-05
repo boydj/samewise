@@ -35,9 +35,9 @@ Milestone 2 fixes:
 
 Codec and time zones (host):
 
-- [ ] Every characteristic round-trips
-- [ ] Truncated values, oversized counts, wrong schema versions and trailing bytes are rejected, and settings are unchanged
-- [ ] County codes must be six digits with a valid subdivision digit
+- [x] Every characteristic round-trips
+- [x] Truncated values, oversized counts, wrong schema versions and trailing bytes are rejected, and settings are unchanged
+- [x] County codes must be six digits with a valid subdivision digit
 - [ ] `EST5EDT,M3.2.0,M11.1.0` gives correct local time on both sides of both 2026 transitions
 - [ ] `UTC0` and `AEST-10AEDT,M10.1.0,M4.1.0/3` parse and convert correctly; malformed strings are rejected
 

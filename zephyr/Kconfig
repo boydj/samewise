@@ -10,6 +10,13 @@ config WX_MATCH
 	help
 	  services/match. Plain C99.
 
+config WX_BLE_CODEC
+	bool "Bluetooth value codec and time zones"
+	select WX_MATCH
+	select WX_SAME
+	help
+	  services/ble codec and POSIX TZ parser. Plain C99.
+
 config WX_APP_LOGIC
 	bool "Application logic: settings, alert manager, health supervisor"
 	select WX_SAME
