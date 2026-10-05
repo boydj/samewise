@@ -701,3 +701,17 @@ ZTEST(ble_service, test_crystal_only_while_window_or_connected)
 	zassert_false(clock_fake_hfxo_on());
 	zassert_equal(clock_fake_hfxo_misuse(), 0);
 }
+
+ZTEST(ble_service, test_bonding_reported_before_security_keeps_the_link)
+{
+	/* Zephyr reports pairing complete before the security change. */
+	PAIR_COMBO();
+	ble_on_connected(b);
+	ble_on_passkey(b, 222222);
+	ble_on_pairing_done(b, true);
+	zassert_equal(port.disconnects, 0, "a freshly bonded phone was dropped");
+	zassert_false(port.pairable);
+	ble_on_security(b, true);
+	zassert_ok(rd(WX_GATT_CHR_MODE));
+	disconnect();
+}

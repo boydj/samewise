@@ -131,6 +131,7 @@ struct ble {
 	bool locked;
 	bool connected;
 	bool secure; /* LE Secure Connections, authenticated */
+	bool bonded; /* this link just bonded; its security event may follow */
 	uint8_t window;  /* enum ble_window */
 	uint8_t confirm; /* BLE_SCREEN_CONFIRM_* or BLE_SCREEN_NONE */
 	uint32_t passkey; /* shown while has_passkey */

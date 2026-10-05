@@ -66,3 +66,68 @@ jobs:
             samewise/twister-out/**/handler.log
             samewise/docs/decoder-snr.md
           if-no-files-found: ignore
+
+  bsim:
+    # Bluetooth on nrf52_bsim: the radio and three phones over Zephyr's host
+    # and the SoftDevice Controller, in BabbleSim.
+    runs-on: ubuntu-24.04
+    env:
+      ZEPHYR_TOOLCHAIN_VARIANT: host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: samewise
+
+      - name: Install host packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib device-tree-compiler ninja-build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache west modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            nrf
+            nrfxlib
+            zephyr
+            modules
+            tools/bsim
+            .west
+          key: west-bsim-${{ hashFiles('samewise/west.yml') }}
+
+      - name: West workspace
+        run: |
+          pip install west
+          [ -d .west ] || west init -l samewise
+          west update --narrow -o=--depth=1
+
+      - name: Python requirements
+        run: |
+          pip install -r zephyr/scripts/requirements-base.txt \
+                      -r zephyr/scripts/requirements-build-test.txt \
+                      -r zephyr/scripts/requirements-run-test.txt
+
+      - name: Build BabbleSim
+        run: |
+          [ -x tools/bsim/bin/bs_2G4_phy_v1 ] || make -C tools/bsim everything -j"$(nproc)"
+
+      - name: Bluetooth tests (nrf52_bsim)
+        working-directory: samewise
+        run: |
+          export ZEPHYR_BASE="$GITHUB_WORKSPACE/zephyr"
+          export BSIM_OUT_PATH="$GITHUB_WORKSPACE/tools/bsim"
+          export BSIM_COMPONENTS_PATH="$BSIM_OUT_PATH/components"
+          tests/bsim/run.sh 2>&1 | tee bsim.log
+
+      - name: Upload simulation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsim-log
+          path: samewise/bsim.log
+          if-no-files-found: ignore

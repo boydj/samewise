@@ -43,17 +43,17 @@ Codec and time zones (host):
 
 Bluetooth on nrf52_bsim:
 
-- [ ] No advertising by default
-- [ ] Pairing fails outside the window; succeeds inside it with the right passkey; fails with a wrong one
-- [ ] An unbonded central is refused on every custom characteristic and on SMP
-- [ ] A bonded central reconnects inside the connect window and not outside it
-- [ ] A third bond needs on-screen confirmation and replaces the oldest
-- [ ] A 16-county list writes and reads back intact
-- [ ] Status notifies on battery and signal changes; Alert log notifies on a new alert
-- [ ] Writing Time sets the clock and local time
-- [ ] An invalid write returns an ATT error and leaves settings unchanged
-- [ ] Factory reset waits for on-device confirmation
-- [ ] The 32 MHz crystal is requested only while a window is open or a phone is connected
+- [x] No advertising by default
+- [x] Pairing fails outside the window; succeeds inside it with the right passkey; fails with a wrong one
+- [x] An unbonded central is refused on every custom characteristic and on SMP
+- [x] A bonded central reconnects inside the connect window and not outside it
+- [x] A third bond needs on-screen confirmation and replaces the oldest
+- [x] A 16-county list writes and reads back intact
+- [x] Status notifies on battery and signal changes; Alert log notifies on a new alert
+- [x] Writing Time sets the clock and local time
+- [x] An invalid write returns an ATT error and leaves settings unchanged
+- [x] Factory reset waits for on-device confirmation
+- [x] The 32 MHz crystal is requested only while a window is open or a phone is connected
 
 Mock peripheral:
 

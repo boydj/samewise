@@ -196,9 +196,9 @@ Scenario tests on `native_sim`, run with accelerated time:
 
 Bluetooth tests on `nrf52_bsim`:
 
-- [ ] Pairing with passkey succeeds inside the window and fails outside it
-- [ ] Unbonded writes are rejected; bonded writes are accepted
-- [ ] County lists longer than one packet write correctly
+- [x] Pairing with passkey succeeds inside the window and fails outside it
+- [x] Unbonded writes are rejected; bonded writes are accepted
+- [x] County lists longer than one packet write correctly
 
 The iPhone app is built against a macOS mock peripheral that implements the same characteristics, since the iOS simulator has no Bluetooth. Run the `native_sim` and `bsim` suites in GitHub Actions on every push. Then move to hardware in the loop: the XIAO with RTL-SDR audio into its ADC, and finally the real board. SAME audio is never transmitted over the air.
 

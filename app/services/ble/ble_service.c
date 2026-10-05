@@ -125,8 +125,8 @@ static void close_window(struct ble *b)
 	if (was == BLE_WINDOW_PAIRING) {
 		b->port->set_pairable(b->port_user, false);
 		b->has_passkey = false;
-		if (b->connected && !b->secure) {
-			b->port->disconnect(b->port_user);
+		if (b->connected && !b->secure && !b->bonded) {
+			b->port->disconnect(b->port_user); /* an unpaired phone */
 		}
 	}
 	power_hfxo_release(POWER_HFXO_BLE_WINDOW);
@@ -251,6 +251,7 @@ void ble_on_connected(struct ble *b)
 {
 	b->connected = true;
 	b->secure = false;
+	b->bonded = false;
 	b->status_sent = false;
 	power_hfxo_request(POWER_HFXO_BLE_CONN);
 	if (b->window == BLE_WINDOW_CONNECT) {
@@ -264,6 +265,7 @@ void ble_on_disconnected(struct ble *b)
 {
 	b->connected = false;
 	b->secure = false;
+	b->bonded = false;
 	b->et_staging = false;
 	b->et_index = 0;
 	b->log_index = 0;
@@ -296,6 +298,7 @@ void ble_on_passkey(struct ble *b, uint32_t passkey)
 void ble_on_pairing_done(struct ble *b, bool bonded)
 {
 	b->has_passkey = false;
+	b->bonded = b->connected && bonded;
 	if (b->window == BLE_WINDOW_PAIRING && bonded) {
 		close_window(b);
 	} else {
