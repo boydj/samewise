@@ -15,6 +15,11 @@ config WX_FAKE_AUDIO_IN
 config WX_FAKE_CLOCK
 	bool "clock fake: simulated time"
 
+config WX_FAKE_WATCHDOG
+	bool "watchdog fake: starvation triggers a simulated reset"
+	help
+	  Uses hal/clock.h timers, so starvation happens in simulated time.
+
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
 	help

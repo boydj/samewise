@@ -62,7 +62,7 @@ class AppUsesOnlyHal(unittest.TestCase):
 
     def test_hal_headers_are_standalone(self):
         hal = sorted((APP / "hal").glob("*.h"))
-        self.assertEqual(len(hal), 9, "the nine interfaces")
+        self.assertEqual(len(hal), 10, "the ten interfaces")
         for h in hal:
             for inc in includes(h):
                 self.assertIn(inc, C_STD, f"{h.relative_to(ROOT)} includes {inc}")

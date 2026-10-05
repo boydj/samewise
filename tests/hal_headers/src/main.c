@@ -1,5 +1,5 @@
 /*
- * All nine hal/ headers compile together, stand alone (no Zephyr includes
+ * All ten hal/ headers compile together, stand alone (no Zephyr includes
  * needed) and agree with the SAME timing in the spec.
  */
 
@@ -12,6 +12,7 @@
 #include "hal/input.h"
 #include "hal/storage.h"
 #include "hal/tuner.h"
+#include "hal/watchdog.h"
 
 #include <zephyr/ztest.h>
 
@@ -21,6 +22,7 @@ BUILD_ASSERT(HAL_AUDIO_IN_RATE_MHZ == 10416667U);
 BUILD_ASSERT(HAL_AUDIO_IN_RATE_NUM / HAL_AUDIO_IN_RATE_DEN / HAL_AUDIO_IN_SAMPLES_PER_BIT == 520U);
 BUILD_ASSERT(HAL_AUDIO_IN_BLOCK_SAMPLES % HAL_AUDIO_IN_SAMPLES_PER_BIT == 0U);
 BUILD_ASSERT(HAL_DISPLAY_FB_SIZE == 144U * 168U / 8U);
+BUILD_ASSERT(HAL_WATCHDOG_TIMEOUT_MS == 8000U); /* spec: watchdog reset after 8 s */
 
 ZTEST(hal_headers, test_mark_and_space_are_whole_cycles_per_bit)
 {
