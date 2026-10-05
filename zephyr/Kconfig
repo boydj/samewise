@@ -10,6 +10,11 @@ config WX_MATCH
 	help
 	  services/match. Plain C99.
 
+config WX_APP_LOGIC
+	bool "Application logic: settings, alert manager, health supervisor"
+	select WX_SAME
+	select WX_MATCH
+
 menu "native_sim fakes"
 	depends on ARCH_POSIX
 
@@ -24,6 +29,9 @@ config WX_FAKE_WATCHDOG
 	bool "watchdog fake: starvation triggers a simulated reset"
 	help
 	  Uses hal/clock.h timers, so starvation happens in simulated time.
+
+config WX_FAKE_STORAGE
+	bool "storage fake: records in memory, surviving simulated resets"
 
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
