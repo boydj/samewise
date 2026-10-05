@@ -147,3 +147,86 @@ jobs:
 
       - name: Test
         run: swift test
+
+  xiao:
+    # The XIAO nRF52840 image (milestone 3.5): size against the MCUboot
+    # budget, then decode, CPU and stack checks in Renode.
+    runs-on: ubuntu-24.04
+    env:
+      ZEPHYR_TOOLCHAIN_VARIANT: zephyr
+      ZEPHYR_SDK_VERSION: "1.0.1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: samewise
+
+      - name: Install host packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler ninja-build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache west modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            nrf
+            nrfxlib
+            zephyr
+            modules
+            tools/bsim
+            .west
+          key: west-xiao-${{ hashFiles('samewise/west.yml') }}
+
+      - name: West workspace
+        run: |
+          pip install west
+          [ -d .west ] || west init -l samewise
+          west update --narrow -o=--depth=1
+
+      - name: Python requirements
+        run: |
+          pip install -r zephyr/scripts/requirements-base.txt \
+                      -r zephyr/scripts/requirements-build-test.txt \
+                      -r samewise/tools/requirements.txt
+
+      - name: Cache Zephyr SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}-arm
+
+      - name: Zephyr SDK (ARM toolchain)
+        run: |
+          sdk=~/zephyr-sdk-$ZEPHYR_SDK_VERSION
+          if [ ! -x $sdk/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc ]; then
+            url=https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v$ZEPHYR_SDK_VERSION
+            curl -sSfL $url/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz | tar xJ -C ~
+            (cd $sdk && ./setup.sh -t arm-zephyr-eabi -h)
+          fi
+          (cd $sdk && ./setup.sh -c)
+          echo "ZEPHYR_SDK_INSTALL_DIR=$sdk" >> $GITHUB_ENV
+
+      - name: Build for xiao_ble
+        working-directory: samewise
+        run: west build -b xiao_ble/nrf52840 app -d build-xiao -p always
+
+      - name: Size against the budget
+        working-directory: samewise
+        run: |
+          python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf \
+            --summary "$GITHUB_STEP_SUMMARY" --json build-xiao/size.json
+
+      - name: Upload image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiao-image
+          path: |
+            samewise/build-xiao/app/zephyr/zephyr.elf
+            samewise/build-xiao/app/zephyr/zephyr.hex
+            samewise/build-xiao/size.json
+          if-no-files-found: ignore

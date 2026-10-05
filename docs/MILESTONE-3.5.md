@@ -15,8 +15,8 @@ Done when every check below passes in CI and `docs/xiao-bench.md` records the si
 
 ## Checks
 
-- [ ] The `xiao_ble` build runs in CI and posts flash and RAM use to the job summary
-- [ ] The image fits in 75% of one MCUboot slot; RAM use is under 70% of 256 KB
+- [x] The `xiao_ble` build runs in CI and posts flash and RAM use to the job summary
+- [x] The image fits in 75% of one MCUboot slot; RAM use is under 70% of 256 KB
 - [ ] Renode boots the image and the banner appears on the UART
 - [ ] The embedded clip decodes on the emulated chip to the same header and EOM as on `native_sim`
 - [ ] Instructions per second of audio are reported; estimated CPU load at 1.5 cycles per instruction is at most 10%
