@@ -1,0 +1,17 @@
+{
+  "generated_from": "app/services/ble/gatt_table.h",
+  "security": "LE Secure Connections, bonded, encrypted and authenticated",
+  "service": {"name": "wx_settings", "uuid": "1af20000-92fa-49ea-aaea-76bad817c54d"},
+  "characteristics": [
+    {"name": "counties", "uuid": "1af20001-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 98, "schema": 1, "layout": "u8 schema, u8 count (0-16), count x 6 ASCII digits PSSCCC"},
+    {"name": "travel_counties", "uuid": "1af20002-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 98, "schema": 1, "layout": "same layout as counties; used only in travel mode"},
+    {"name": "mode", "uuid": "1af20003-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 3, "schema": 1, "layout": "u8 schema, u8 mode (0 home, 1 travel), u8 channel (0 auto-scan, 1-7)"},
+    {"name": "event_filter", "uuid": "1af20004-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 18, "schema": 1, "layout": "u8 schema, u8 preset (0 warnings, 1 warnings+watches, 2 all, 3 custom), 16-byte bitmap over event table indices"},
+    {"name": "event_table", "uuid": "1af20005-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 41, "schema": 1, "layout": "indexed. write u8 schema, u8 op: 0 select (u8 index), 1 begin (u16 version, u8 count), 2 entry (u8 index, 3 ASCII code, u8 class, u8 name_len, name), 3 commit, 4 abort. read: u8 schema, u16 version, u8 count, u8 index, 3 ASCII code, u8 class, u8 name_len, name"},
+    {"name": "time", "uuid": "1af20006-92fa-49ea-aaea-76bad817c54d", "properties": ["write"], "max_length": 58, "schema": 1, "layout": "u8 schema, i64 UTC seconds, u8 tz_len (1-48), POSIX TZ string"},
+    {"name": "presets", "uuid": "1af20007-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write"], "max_length": 42, "schema": 1, "layout": "u8 schema, u8 count (0-8), count x (u8 band 0 FM 1 AM 2 WB, u32 kHz)"},
+    {"name": "status", "uuid": "1af20008-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "notify"], "max_length": 20, "schema": 1, "layout": "u8 schema, u8 battery %, u16 hours left, i8 SNR dB, i8 RSSI dBuV, u8 channel, i64 last weekly test UTC (-1 none), u32 health flags, u8 lock"},
+    {"name": "alert_log", "uuid": "1af20009-92fa-49ea-aaea-76bad817c54d", "properties": ["read", "write", "notify"], "max_length": 266, "schema": 1, "layout": "indexed. write u8 schema, u8 index (0 newest). read/notify: u8 schema, u8 count, u8 index, i64 received UTC (-1 unset), u8 outcome, u8 flags, u8 len, raw header"},
+    {"name": "control", "uuid": "1af2000a-92fa-49ea-aaea-76bad817c54d", "properties": ["write", "indicate"], "max_length": 3, "schema": 1, "layout": "write u8 schema, u8 command (1 test alert, 2 clear log, 3 factory reset). indicate: u8 schema, u8 command, u8 result (0 done, 1 awaiting confirmation, 2 cancelled, 3 rejected)"}
+  ]
+}
