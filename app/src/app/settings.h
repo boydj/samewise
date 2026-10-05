@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "services/match/event_table.h"
+#include "services/match/filter.h"
 #include "services/same/same_header.h"
 
 #ifdef __cplusplus
@@ -27,19 +28,11 @@ extern "C" {
 #define SETTINGS_CHANNEL_AUTO 0U
 #define SETTINGS_CHANNEL_MAX  7U
 /** Bytes in the custom filter bitmap, one bit per event table index. */
-#define SETTINGS_FILTER_BYTES (EVENT_TABLE_MAX / 8)
+#define SETTINGS_FILTER_BYTES FILTER_CUSTOM_BYTES
 
 enum settings_mode {
 	SETTINGS_MODE_HOME,
 	SETTINGS_MODE_TRAVEL,
-};
-
-enum filter_preset {
-	FILTER_WARNINGS,         /* warnings only */
-	FILTER_WARNINGS_WATCHES, /* default */
-	FILTER_ALL,              /* every class except tests */
-	FILTER_CUSTOM,           /* bitmap over the event table */
-	FILTER_PRESET_COUNT,
 };
 
 struct county_list {
