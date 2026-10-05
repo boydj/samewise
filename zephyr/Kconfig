@@ -5,6 +5,11 @@ config WX_SAME
 	help
 	  Streaming SAME decoder (services/same). Plain C99.
 
+config WX_MATCH
+	bool "Event table, matcher, filter and duplicates"
+	help
+	  services/match. Plain C99.
+
 menu "native_sim fakes"
 	depends on ARCH_POSIX
 

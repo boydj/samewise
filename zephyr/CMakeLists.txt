@@ -7,5 +7,6 @@ set(WX_APP_DIR ${CMAKE_CURRENT_LIST_DIR}/../app)
 zephyr_include_directories(${WX_APP_DIR})
 
 add_subdirectory_ifdef(CONFIG_WX_SAME ${WX_APP_DIR}/services/same services/same)
+add_subdirectory_ifdef(CONFIG_WX_MATCH ${WX_APP_DIR}/services/match services/match)
 add_subdirectory(${WX_APP_DIR}/fakes fakes)
 include(${CMAKE_CURRENT_LIST_DIR}/../tools/vectors/vectors.cmake)

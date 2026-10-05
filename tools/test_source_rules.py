@@ -1,6 +1,6 @@
 """Checks for the source rules in CLAUDE.md.
 
-- services/same/ is plain C99: it builds with a host compiler in strict C99
+- services/same/ and services/match/ are plain C99: it builds with a host compiler in strict C99
   mode, includes only the C standard library and its own headers, and never
   promotes float to double implicitly.
 - app/ and services/ include only hal/ interfaces for hardware: no driver
@@ -17,6 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "app"
 SAME = APP / "services" / "same"
+MATCH = APP / "services" / "match"
+PLAIN_C99 = (SAME, MATCH)
 INCLUDE = re.compile(r'^\s*#\s*include\s*([<"])([^>"]+)[>"]', re.M)
 C_STD = {"stdbool.h", "stddef.h", "stdint.h", "string.h", "limits.h", "math.h"}
 
@@ -30,21 +32,21 @@ def sources(*dirs):
         yield from sorted(p for p in d.rglob("*") if p.suffix in (".c", ".h"))
 
 
-class SameIsPlainC99(unittest.TestCase):
+class ServicesArePlainC99(unittest.TestCase):
     def test_includes(self):
-        for src in sources(SAME):
+        for src in sources(*PLAIN_C99):
             for inc in includes(src):
-                self.assertTrue(inc in C_STD or inc.startswith("services/same/"),
+                self.assertTrue(inc in C_STD or inc.startswith(("services/same/", "services/match/")),
                                 f"{src.relative_to(ROOT)} includes {inc}")
 
     def test_no_double(self):
-        for src in sources(SAME):
+        for src in sources(*PLAIN_C99):
             self.assertNotRegex(src.read_text(), r"\bdouble\b", f"{src.relative_to(ROOT)} uses double")
 
     @unittest.skipUnless(shutil.which("gcc"), "needs gcc")
     def test_builds_as_strict_c99(self):
         with tempfile.TemporaryDirectory() as d:
-            for src in sorted(SAME.glob("*.c")):
+            for src in sorted(p for d in PLAIN_C99 for p in d.glob("*.c")):
                 subprocess.run(
                     ["gcc", "-std=c99", "-pedantic-errors", "-Wall", "-Wextra", "-Wshadow",
                      "-Wdouble-promotion", "-Wfloat-conversion", "-Werror", "-I", str(APP),
