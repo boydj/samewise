@@ -163,7 +163,8 @@ jobs:
       - name: Install host packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends device-tree-compiler ninja-build
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib device-tree-compiler ninja-build
 
       - uses: actions/setup-python@v5
         with:
@@ -220,13 +221,37 @@ jobs:
           python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf \
             --summary "$GITHUB_STEP_SUMMARY" --json build-xiao/size.json
 
-      - name: Upload image
+      - name: Same app on native_sim (the decode reference)
+        working-directory: samewise
+        env:
+          ZEPHYR_TOOLCHAIN_VARIANT: host
+        run: |
+          west build -b native_sim app -d build-native -p always
+          build-native/app/zephyr/zephyr.exe --stop_at=3 | tee native.log
+
+      - name: Renode
+        env:
+          RENODE_VERSION: "1.16.0"
+        run: |
+          curl -sSfL https://github.com/renode/renode/releases/download/v$RENODE_VERSION/renode-$RENODE_VERSION.linux-portable.tar.gz | tar xz
+          mv renode_${RENODE_VERSION}_portable renode
+          pip install -r renode/tests/requirements.txt
+
+      - name: Decode, CPU and stacks in Renode
+        working-directory: samewise
+        run: |
+          tests/renode/run.sh ../renode build-xiao renode-out native.log
+          cat renode-out/xiao-bench.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload image and bench
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: xiao-image
+          name: xiao-bench
           path: |
             samewise/build-xiao/app/zephyr/zephyr.elf
             samewise/build-xiao/app/zephyr/zephyr.hex
             samewise/build-xiao/size.json
+            samewise/native.log
+            samewise/renode-out
           if-no-files-found: ignore

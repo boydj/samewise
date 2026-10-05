@@ -40,13 +40,18 @@ west twister -T tests -p native_sim
 python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/samegen/samegen.py --help
 tests/bsim/run.sh    # Bluetooth on nrf52_bsim; needs BabbleSim, see below
+west build -b xiao_ble/nrf52840 app -d build-xiao      # needs the Zephyr SDK's ARM toolchain
+python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf --json build-xiao/size.json
+tests/renode/run.sh <renode dir> build-xiao renode-out [native_sim console log]
 ```
 
 Workspace setup (T2 layout, from the directory containing this repo): `west init -l samewise && west update --narrow -o=--depth=1`. Zephyr in the pinned NCS needs Python 3.12 or newer; install `zephyr/scripts/requirements-{base,build-test,run-test}.txt` and `tools/requirements.txt`. `native_sim` needs `gcc-multilib`, and without the Zephyr SDK set `ZEPHYR_TOOLCHAIN_VARIANT=host`. NCS builds use sysbuild by default, so the app binary lands in `build/app/`. Synthetic test vectors are generated into each test's build directory at build time (`tools/vectors/build_vectors.py`); only RTL-SDR recordings are committed (git LFS).
 
 Bluetooth tests: the manifest brings BabbleSim into `tools/bsim` beside the repo. Build it once with `make -C tools/bsim everything -j`, then set `ZEPHYR_BASE`, `BSIM_OUT_PATH=<workspace>/tools/bsim` and `BSIM_COMPONENTS_PATH=$BSIM_OUT_PATH/components` and run `tests/bsim/run.sh`. One image plays the radio (on the native fakes, with the real Bluetooth host and SoftDevice Controller) and three phones; the service logic itself is also tested on `native_sim` with a fake stack (`tests/ble/service`).
 
-Later targets: `xiao_ble` for the XIAO prototype (confirm the board name for the pinned Zephyr) and a custom `wx_radio` board.
+XIAO and Renode: the board target is `xiao_ble/nrf52840`. Install the Zephyr SDK minimal bundle and its `arm-zephyr-eabi` toolchain (release v1.0.1 on GitHub, `setup.sh -t arm-zephyr-eabi -c`) and set `ZEPHYR_TOOLCHAIN_VARIANT=zephyr`. `tests/renode/run.sh` runs the image on Renode's nRF52840 (the portable release from GitHub, with `pip install -r <renode>/tests/requirements.txt`) and writes the bench report; `docs/xiao-bench.md` is its output. The image decodes a SAME clip compiled into flash (`tools/vectors/build_clip.py`) until the ADC driver exists.
+
+Later target: a custom `wx_radio` board.
 
 ## Rules
 

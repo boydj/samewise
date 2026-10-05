@@ -175,7 +175,7 @@ Rules that keep it there:
 
 ## Simulation and test plan
 
-The same application builds for three targets: `native_sim` on a laptop with fakes, `nrf52_bsim` for Bluetooth, and the real board. Most firmware risk can be retired before parts arrive.
+The same application builds for three targets: `native_sim` on a laptop with fakes, `nrf52_bsim` for Bluetooth, and the real board. Before the radio board exists, the XIAO nRF52840 image also runs in Renode's emulated nRF52840, decoding a SAME clip compiled into flash, to check that it fits and to estimate decoder CPU load (`docs/xiao-bench.md`). Most firmware risk can be retired before parts arrive.
 
 Test audio:
 

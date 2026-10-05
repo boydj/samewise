@@ -17,12 +17,12 @@ Done when every check below passes in CI and `docs/xiao-bench.md` records the si
 
 - [x] The `xiao_ble` build runs in CI and posts flash and RAM use to the job summary
 - [x] The image fits in 75% of one MCUboot slot; RAM use is under 70% of 256 KB
-- [ ] Renode boots the image and the banner appears on the UART
-- [ ] The embedded clip decodes on the emulated chip to the same header and EOM as on `native_sim`
-- [ ] Instructions per second of audio are reported; estimated CPU load at 1.5 cycles per instruction is at most 10%
-- [ ] No double-precision promotion in `services/same/`
-- [ ] Every thread's stack high-water mark is at most 75% of its size
-- [ ] Results are written to `docs/xiao-bench.md`
+- [x] Renode boots the image and the banner appears on the UART
+- [x] The embedded clip decodes on the emulated chip to the same header and EOM as on `native_sim`
+- [x] Instructions per second of audio are reported; estimated CPU load at 1.5 cycles per instruction is at most 10%
+- [x] No double-precision promotion in `services/same/`
+- [x] Every thread's stack high-water mark is at most 75% of its size
+- [x] Results are written to `docs/xiao-bench.md`
 
 ## Out of scope
 
