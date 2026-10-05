@@ -28,12 +28,17 @@ enum alert_log_outcome {
 	ALERT_LOG_FILTERED, /* known event the filter doesn't alert on, tests included */
 	ALERT_LOG_UNKNOWN,  /* event code missing from the table */
 	ALERT_LOG_EXPIRED,  /* issue + purge already past on arrival */
+	ALERT_LOG_TEST,     /* a test alert from the phone (Control characteristic) */
 };
+
+/** Entry flags. */
+#define ALERT_LOG_FLAG_FUTURE_ISSUE 0x01U /* issue time distrusted; expiry from receipt */
 
 struct alert_log_entry {
 	char raw[SAME_HEADER_MAX_LEN + 1];
 	int64_t received_utc; /* -1 if the clock was unset */
 	uint8_t outcome;      /* enum alert_log_outcome */
+	uint8_t flags;        /* ALERT_LOG_FLAG_* */
 };
 
 /** Read the log's position from storage (it survives resets). */
@@ -41,7 +46,7 @@ void alert_log_init(void);
 
 /** Queue an entry; never blocks. Drops the oldest queued entry if full. */
 void alert_log_append(const struct same_header *h, int64_t received_utc,
-		      enum alert_log_outcome outcome);
+		      enum alert_log_outcome outcome, uint8_t flags);
 
 /** Write queued entries to storage. Returns the number written. */
 int alert_log_flush(void);
@@ -49,11 +54,17 @@ int alert_log_flush(void);
 /** Entries in storage (at most ALERT_LOG_SIZE), plus those still queued. */
 uint32_t alert_log_count(void);
 
+/** Entries in storage, readable with alert_log_read(). */
+uint32_t alert_log_stored(void);
+
 /** Entries ever appended since alert_log_init(). */
 uint32_t alert_log_appended(void);
 
 /** Entries dropped because the queue was full. */
 uint32_t alert_log_dropped(void);
+
+/** Delete every stored and queued entry. */
+void alert_log_clear(void);
 
 /** Read stored entry i, 0 = newest. Returns 0 or a negative errno. */
 int alert_log_read(uint32_t i, struct alert_log_entry *out);

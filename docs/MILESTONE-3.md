@@ -17,7 +17,7 @@ Done when every test below passes in CI, `docs/gatt.json` is generated from the 
    - Advertising off by default.
    - Long-press BAND opens a 2-minute connect window restricted to bonded phones by the filter accept list.
    - BAND + STBY opens a 60-second pairing window: LE Secure Connections, display-only, passkey on a `ui_model` screen.
-   - At most 2 bonds; a third replaces the oldest after on-screen confirmation.
+   - At most 2 bonds; a third replaces the least recently used after on-screen confirmation.
    - Request the 32 MHz crystal from the power manager when a window opens; release it on close or disconnect.
 6. **Control.** Test alert (runs the alert patterns, logged as a test), clear log, and factory reset, which waits for confirmation on the radio.
 7. **Firmware updates.** Enable the MCUmgr SMP service with LE Secure Connections permissions. Image upload and swap are tested on hardware later; here only prove that unbonded access is refused.
@@ -28,36 +28,36 @@ Done when every test below passes in CI, `docs/gatt.json` is generated from the 
 
 Milestone 2 fixes:
 
-- [ ] A day 366 header received in 2027 expires at receive time plus purge time, not in 2028
-- [ ] An issue time 15 minutes in the future is distrusted; 5 minutes in the future is accepted
-- [ ] 40 non-matching headers don't evict a matched alert; its re-broadcast stays suppressed
-- [ ] Weekly-test duplicates are still suppressed
+- [x] A day 366 header received in 2027 expires at receive time plus purge time, not in 2028
+- [x] An issue time 15 minutes in the future is distrusted; 5 minutes in the future is accepted
+- [x] 40 non-matching headers don't evict a matched alert; its re-broadcast stays suppressed
+- [x] Weekly-test duplicates are still suppressed
 
 Codec and time zones (host):
 
-- [ ] Every characteristic round-trips
-- [ ] Truncated values, oversized counts, wrong schema versions and trailing bytes are rejected, and settings are unchanged
-- [ ] County codes must be six digits with a valid subdivision digit
-- [ ] `EST5EDT,M3.2.0,M11.1.0` gives correct local time on both sides of both 2026 transitions
-- [ ] `UTC0` and `AEST-10AEDT,M10.1.0,M4.1.0/3` parse and convert correctly; malformed strings are rejected
+- [x] Every characteristic round-trips
+- [x] Truncated values, oversized counts, wrong schema versions and trailing bytes are rejected, and settings are unchanged
+- [x] County codes must be six digits with a valid subdivision digit
+- [x] `EST5EDT,M3.2.0,M11.1.0` gives correct local time on both sides of both 2026 transitions
+- [x] `UTC0` and `AEST-10AEDT,M10.1.0,M4.1.0/3` parse and convert correctly; malformed strings are rejected
 
 Bluetooth on nrf52_bsim:
 
-- [ ] No advertising by default
-- [ ] Pairing fails outside the window; succeeds inside it with the right passkey; fails with a wrong one
-- [ ] An unbonded central is refused on every custom characteristic and on SMP
-- [ ] A bonded central reconnects inside the connect window and not outside it
-- [ ] A third bond needs on-screen confirmation and replaces the oldest
-- [ ] A 16-county list writes and reads back intact
-- [ ] Status notifies on battery and signal changes; Alert log notifies on a new alert
-- [ ] Writing Time sets the clock and local time
-- [ ] An invalid write returns an ATT error and leaves settings unchanged
-- [ ] Factory reset waits for on-device confirmation
-- [ ] The 32 MHz crystal is requested only while a window is open or a phone is connected
+- [x] No advertising by default
+- [x] Pairing fails outside the window; succeeds inside it with the right passkey; fails with a wrong one
+- [x] An unbonded central is refused on every custom characteristic and on SMP
+- [x] A bonded central reconnects inside the connect window and not outside it
+- [x] A third bond needs on-screen confirmation and replaces the least recently used
+- [x] A 16-county list writes and reads back intact
+- [x] Status notifies on battery and signal changes; Alert log notifies on a new alert
+- [x] Writing Time sets the clock and local time
+- [x] An invalid write returns an ATT error and leaves settings unchanged
+- [x] Factory reset waits for on-device confirmation
+- [x] The 32 MHz crystal is requested only while a window is open or a phone is connected
 
 Mock peripheral:
 
-- [ ] Builds in CI on a macOS runner and serves every characteristic in `docs/gatt.json`
+- [x] Builds in CI on a macOS runner and serves every characteristic in `docs/gatt.json`
 
 ## Out of scope
 

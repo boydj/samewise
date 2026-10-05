@@ -3,11 +3,13 @@
  */
 
 #include "app/alert_log.h"
+#include "app/ble_link.h"
 #include "app/clock_sync.h"
 #include "app/radio.h"
 #include "hal/audio_in.h"
 #include "hal/input.h"
 #include "hal/tuner.h"
+#include "services/power/power.h"
 
 static void on_header(const struct same_header *h, void *user)
 {
@@ -23,11 +25,21 @@ static void on_eom(void *user)
 	alert_mgr_on_eom(&r->alerts);
 }
 
+/*
+ * Keys go to the alert manager first. Bluetooth sees a key only if no
+ * alert was sounding or on screen, so a press that silences an alert never
+ * also opens a window or answers a prompt.
+ */
 static void on_input(const struct hal_input_event *e, void *user)
 {
 	struct radio *r = user;
+	enum alert_state before = alert_mgr_state(&r->alerts);
 
 	alert_mgr_on_input(&r->alerts, e);
+	if (r->ble.app != NULL &&
+	    (before == ALERT_STATE_STANDBY || before == ALERT_STATE_LISTENING)) {
+		ble_on_input(&r->ble, e);
+	}
 }
 
 uint32_t radio_weather_khz(uint8_t channel)
@@ -41,6 +53,8 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 
 	r->settings_errors = (uint32_t)settings_load(&r->settings);
 	r->idle_samples = 0;
+	r->ble.app = NULL;
+	power_init();
 	ui_model_init(&r->ui);
 	alert_log_init();
 	clock_sync_init(firmware_epoch_utc);
@@ -56,6 +70,11 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 	(void)hal_tuner_set_band(HAL_TUNER_BAND_WB);
 	(void)hal_tuner_tune(khz != 0U ? khz : cfg->default_khz);
 	(void)hal_audio_in_start();
+}
+
+void radio_ble_start(struct radio *r, const struct ble_port *port, void *port_user)
+{
+	ble_init(&r->ble, &ble_link_ops, r, port, port_user);
 }
 
 int radio_pump_audio(struct radio *r, size_t max)
@@ -82,7 +101,13 @@ void radio_idle_audio(struct radio *r, uint32_t n)
 
 void radio_low_priority(struct radio *r)
 {
-	(void)r;
-	(void)alert_log_flush();
+	int logged = alert_log_flush();
+
 	(void)clock_sync_flush();
+	if (r->ble.app != NULL) {
+		if (logged > 0) {
+			ble_log_added(&r->ble);
+		}
+		ble_poll_status(&r->ble);
+	}
 }

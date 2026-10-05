@@ -10,10 +10,50 @@ config WX_MATCH
 	help
 	  services/match. Plain C99.
 
+config WX_BLE_CODEC
+	bool "Bluetooth value codec and time zones"
+	select WX_MATCH
+	select WX_SAME
+	help
+	  services/ble codec and POSIX TZ parser. Plain C99.
+
+config WX_BLE_SERVICE
+	bool "Bluetooth settings service and connection policy"
+	select WX_BLE_CODEC
+	select WX_POWER
+	help
+	  services/ble/ble_service.c: characteristics and policy over a port
+	  table, so it runs on native_sim without a controller.
+
+config WX_BLE_ZEPHYR
+	bool "Bluetooth service on Zephyr's Bluetooth host"
+	depends on BT_PERIPHERAL && BT_SMP
+	select WX_BLE_SERVICE
+	select BT_GATT_DYNAMIC_DB
+	select BT_SMP_APP_PAIRING_ACCEPT
+	select BT_SMP_SC_ONLY
+	select BT_FILTER_ACCEPT_LIST
+	select BT_KEYS_OVERWRITE_OLDEST
+	help
+	  services/ble/ble_zephyr.c: the GATT service from gatt_table.h with
+	  LE Secure Connections permissions, the filter accept list and
+	  display-only passkey pairing. Set BT_MAX_PAIRED=2, BT_MAX_CONN=1 and
+	  BT_ATT_PREPARE_COUNT=6 (long writes at the minimum MTU).
+
+	  A third bond replaces the least recently used one (BT_KEYS_OVERWRITE_OLDEST
+	  ages keys on use). Leave BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING off: it
+	  would make that the oldest paired instead.
+
+config WX_POWER
+	bool "Power manager"
+	help
+	  services/power: 32 MHz crystal requests.
+
 config WX_APP_LOGIC
 	bool "Application logic: settings, alert manager, health supervisor"
 	select WX_SAME
 	select WX_MATCH
+	select WX_BLE_SERVICE
 
 menu "native_sim fakes"
 	depends on ARCH_POSIX

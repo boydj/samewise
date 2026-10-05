@@ -82,6 +82,8 @@ struct health {
 	uint32_t tuner_khz;
 	uint8_t consecutive_faults;
 	int64_t weak_since_ms;  /* -1 while the signal is good */
+	int16_t snr_db;         /* last valid tuner status on weather */
+	int16_t rssi_dbuv;
 	int64_t last_rwt_ms;
 	int64_t next_warning_chirp_ms;
 	int64_t next_critical_chirp_ms;

@@ -16,6 +16,11 @@
 #define KEY_CHANNEL "channel"
 #define KEY_FILTER  "filter"
 #define KEY_EVENTS  "events"
+#define KEY_PRESETS "presets"
+#define KEY_TZ      "tz"
+
+static const char *const all_keys[] = {KEY_HOME,   KEY_TRAVEL, KEY_MODE,    KEY_CHANNEL,
+				       KEY_FILTER, KEY_EVENTS, KEY_PRESETS, KEY_TZ};
 
 /* Largest record: the event table, 6 header bytes + 5 + name per entry. */
 #define BUF_SIZE (6 + EVENT_TABLE_MAX * (5 + EVENT_NAME_MAX))
@@ -149,6 +154,66 @@ void settings_defaults(struct settings *s)
 	s->channel = SETTINGS_CHANNEL_AUTO;
 	s->filter = FILTER_WARNINGS_WATCHES;
 	event_table_load_default(&s->events);
+	strcpy(s->tz, SETTINGS_TZ_DEFAULT);
+	(void)tz_parse(s->tz, &s->tz_info);
+}
+
+static size_t put_presets(const struct settings *s)
+{
+	size_t n = 0;
+
+	buf[n++] = SCHEMA;
+	buf[n++] = s->preset_count;
+	for (uint8_t i = 0; i < s->preset_count; i++) {
+		buf[n++] = s->presets[i].band;
+		buf[n++] = (uint8_t)(s->presets[i].khz & 0xFFU);
+		buf[n++] = (uint8_t)((s->presets[i].khz >> 8) & 0xFFU);
+		buf[n++] = (uint8_t)((s->presets[i].khz >> 16) & 0xFFU);
+		buf[n++] = (uint8_t)(s->presets[i].khz >> 24);
+	}
+	return n;
+}
+
+static bool get_presets(struct settings *s, int len)
+{
+	struct codec_preset tmp[SETTINGS_MAX_PRESETS];
+	uint8_t count;
+
+	if (len < 2 || buf[0] != SCHEMA || buf[1] > SETTINGS_MAX_PRESETS || len != 2 + 5 * buf[1]) {
+		return false;
+	}
+	count = buf[1];
+	for (uint8_t i = 0; i < count; i++) {
+		const uint8_t *p = &buf[2 + 5 * i];
+
+		tmp[i].band = p[0];
+		tmp[i].khz = (uint32_t)p[1] | ((uint32_t)p[2] << 8) | ((uint32_t)p[3] << 16) |
+			     ((uint32_t)p[4] << 24);
+		if (!codec_preset_valid(tmp[i].band, tmp[i].khz)) {
+			return false;
+		}
+	}
+	s->preset_count = count;
+	memcpy(s->presets, tmp, count * sizeof(tmp[0]));
+	return true;
+}
+
+static bool get_tz(struct settings *s, int len)
+{
+	char tz[SETTINGS_TZ_MAX + 1];
+	struct tz_info info;
+
+	if (len < 2 || len > 1 + SETTINGS_TZ_MAX || buf[0] != SCHEMA) {
+		return false;
+	}
+	memcpy(tz, &buf[1], (size_t)len - 1U);
+	tz[len - 1] = '\0';
+	if (strlen(tz) != (size_t)len - 1U || tz_parse(tz, &info) != 0) {
+		return false;
+	}
+	strcpy(s->tz, tz);
+	s->tz_info = info;
+	return true;
 }
 
 int settings_load(struct settings *s)
@@ -194,6 +259,14 @@ int settings_load(struct settings *s)
 	}
 	len = read_record(KEY_EVENTS);
 	if (len != 0 && !(len > 0 && get_events(&s->events, len))) {
+		bad++;
+	}
+	len = read_record(KEY_PRESETS);
+	if (len != 0 && !(len > 0 && get_presets(s, len))) {
+		bad++;
+	}
+	len = read_record(KEY_TZ);
+	if (len != 0 && !(len > 0 && get_tz(s, len))) {
 		bad++;
 	}
 	return bad;
@@ -268,6 +341,51 @@ int settings_set_event_table(struct settings *s, const struct event_table *table
 	}
 	s->events = *table;
 	return hal_storage_write(KEY_EVENTS, buf, put_events(&s->events));
+}
+
+int settings_set_presets(struct settings *s, const struct codec_preset *presets, uint8_t count)
+{
+	if (count > SETTINGS_MAX_PRESETS || (presets == NULL && count > 0U)) {
+		return -EINVAL;
+	}
+	for (uint8_t i = 0; i < count; i++) {
+		if (!codec_preset_valid(presets[i].band, presets[i].khz)) {
+			return -EINVAL;
+		}
+	}
+	s->preset_count = count;
+	if (count > 0U) {
+		memcpy(s->presets, presets, count * sizeof(presets[0]));
+	}
+	return hal_storage_write(KEY_PRESETS, buf, put_presets(s));
+}
+
+int settings_set_tz(struct settings *s, const char *tz)
+{
+	struct tz_info info;
+	size_t len;
+
+	if (tz == NULL || (len = strlen(tz)) > SETTINGS_TZ_MAX || tz_parse(tz, &info) != 0) {
+		return -EINVAL;
+	}
+	strcpy(s->tz, tz);
+	s->tz_info = info;
+	buf[0] = SCHEMA;
+	memcpy(&buf[1], tz, len);
+	return hal_storage_write(KEY_TZ, buf, 1U + len);
+}
+
+void settings_factory_reset(struct settings *s)
+{
+	for (size_t i = 0; i < sizeof(all_keys) / sizeof(all_keys[0]); i++) {
+		(void)hal_storage_delete(all_keys[i]);
+	}
+	settings_defaults(s);
+}
+
+int64_t settings_local_time(const struct settings *s, int64_t utc, bool *dst)
+{
+	return tz_local(&s->tz_info, utc, dst);
 }
 
 const struct county_list *settings_active_counties(const struct settings *s)

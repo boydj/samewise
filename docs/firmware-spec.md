@@ -59,22 +59,34 @@ One custom service carries all settings and status, and every custom characteris
 | Travel counties | Read, write | Same format; written by the app from the phone's location; used only in travel mode |
 | Mode | Read, write | Home or travel; weather channel auto-scan or fixed channel 1–7 |
 | Event filter | Read, write | Preset (warnings only, warnings and watches, all) or a custom bitmap over the event table |
-| Event table | Read, write | Versioned list of event code, display name and class (warning, watch, advisory, test, statement) |
-| Time | Write | UTC seconds plus a POSIX time-zone string such as `EST5EDT,M3.2.0,M11.1.0` |
+| Event table | Read, write | Versioned list of event code, display name and class (warning, watch, advisory, test, statement), one entry per read; writes select an entry or replace the table (begin, entries, commit) |
+| Time | Write | UTC seconds plus a POSIX time-zone string such as `EST5EDT,M3.2.0,M11.1.0` (up to 48 characters; a daylight-saving name without transition rules is rejected) |
 | Presets | Read, write | Up to 8 stations: band and frequency |
 | Status | Read, notify | Battery percent, estimated hours left, signal quality, channel, last weekly test (UTC), health flags, lock state |
-| Alert log | Read, notify | Last 16 alerts: raw SAME header and received time |
+| Alert log | Read, write, notify | Last 16 alerts: raw SAME header, received time, outcome and flags, one entry per read; a write selects the entry |
 | Control | Write, indicate | Test alert, clear log, factory reset (confirmed on the radio) |
 
-Every value starts with a 1-byte schema version; fixed fields are little-endian, lists are length-prefixed. Lists longer than the default packet size rely on the larger packet size iOS negotiates, with long writes as the fallback.
+Every value starts with a 1-byte schema version; fixed fields are little-endian, lists are length-prefixed. Lists longer than the default packet size rely on the larger packet size iOS negotiates, with long writes as the fallback. The event table and alert log exceed the 512-byte attribute limit, so they are read one entry at a time. `services/ble/gatt_table.h` defines the UUIDs and maximum lengths, and `docs/gatt.json` is generated from it.
 
 Connection rules:
 
 - Advertising is off by default, so the 32 MHz crystal and its harmonics stay off.
 - Long-press BAND opens a 2-minute connect window that only bonded phones can use (filter accept list).
 - BAND + STBY opens a 60-second pairing window: LE Secure Connections, passkey shown on the LCD, the radio acting as display-only.
-- At most 2 bonds; pairing a third replaces the oldest after on-screen confirmation.
+- At most 2 bonds; pairing a third replaces the least recently used phone after on-screen confirmation.
 - On connect, the app writes Time, and in travel mode also Travel counties.
+- Confirmations on the radio (third bond, factory reset): long-press STBY confirms; any other key, 30 seconds, or (for a reset) the phone disconnecting cancels.
+- Keys open windows only from Standby or Listening with the lock off; a press that silences an alert does nothing else. One connection at a time.
+- The 32 MHz crystal is requested while a window is open or a phone is connected.
+
+Behaviour of the characteristics:
+
+- Characteristics answer only an LE Secure Connections authenticated link.
+- Writes are validated completely before anything changes; a rejected write returns an ATT error from `docs/gatt.json` and changes nothing. A storage failure returns its own error: the value is in effect until the next restart.
+- Every accepted settings write notifies Status. Status also notifies when battery percent, health flags, lock or channel change, or SNR or RSSI moves 3 dB from the last notified value. Hours left reads 0xFFFF until the power manager estimates it.
+- Event table writes are staged: begin (version, count), entries in index order, commit. An empty table is refused, since it would silence every alert.
+- Alert log notifies its newest entry when one is stored.
+- Control: a test alert runs the warning patterns and the alert screen for 2 minutes, shows Practice/Demo Warning and is logged as a test; it is refused unless the radio is in Standby, so it can never mask a real alert. Results arrive as indications.
 
 ## SAME decoding and alert logic
 
@@ -112,7 +124,7 @@ Alert behaviour:
 - Plugging in headphones during an alert stops the buzzer and plays the broadcast; end of message (NNNN) ends the audio.
 - The key lock blocks every button except the silence press during an alert. During an alert any key only silences, locked or not; outside an alert the lock ignores every key, so standby can't be turned off while locked. Ignored presses don't count as input for the 60-minute listening timeout.
 - While you listen to AM or FM the single tuner can't monitor weather: the screen shows alerts paused, and the radio returns to standby after 60 minutes without input.
-- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old. Headers carry no year, so setting an unset clock takes the first year at or after the last UTC the radio stored (or the firmware's epoch). That stored time is refreshed on every clock set and daily.
+- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old. Headers carry no year, so setting an unset clock takes the first year at or after the last UTC the radio stored (or the firmware's epoch). That stored time is refreshed on every clock set and daily. An RWT never moves a set clock by more than a day: a larger jump means a wrongly inferred year (day 366 in a non-leap year), which would make every later alert look expired, so it is counted and ignored.
 - The alert log keeps the last 16 non-duplicate headers that matched the counties, plus every test, each with its received time and outcome (alerted, filtered, unknown event, expired). Entries wait in RAM and are written to flash at low priority, so the alert path never waits on flash.
 - Vibration uses distinct patterns for warnings and watches, so the class is felt without looking.
 
@@ -184,9 +196,9 @@ Scenario tests on `native_sim`, run with accelerated time:
 
 Bluetooth tests on `nrf52_bsim`:
 
-- [ ] Pairing with passkey succeeds inside the window and fails outside it
-- [ ] Unbonded writes are rejected; bonded writes are accepted
-- [ ] County lists longer than one packet write correctly
+- [x] Pairing with passkey succeeds inside the window and fails outside it
+- [x] Unbonded writes are rejected; bonded writes are accepted
+- [x] County lists longer than one packet write correctly
 
 The iPhone app is built against a macOS mock peripheral that implements the same characteristics, since the iOS simulator has no Bluetooth. Run the `native_sim` and `bsim` suites in GitHub Actions on every push. Then move to hardware in the loop: the XIAO with RTL-SDR audio into its ADC, and finally the real board. SAME audio is never transmitted over the air.
 

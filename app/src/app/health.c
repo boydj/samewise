@@ -61,6 +61,8 @@ static void check_tuner(struct health *hs, int64_t now)
 		set_warning(hs, UI_WARN_TUNER_FAULT, false);
 		if (!listening(hs)) {
 			hs->tuner_khz = st.freq_khz;
+			hs->snr_db = st.snr_db;
+			hs->rssi_dbuv = st.rssi_dbuv;
 			if (st.snr_db < hs->cfg.min_snr_db) {
 				if (hs->weak_since_ms < 0) {
 					hs->weak_since_ms = now;

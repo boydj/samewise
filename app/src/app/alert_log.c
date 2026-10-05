@@ -36,7 +36,7 @@ void alert_log_init(void)
 }
 
 void alert_log_append(const struct same_header *h, int64_t received_utc,
-		      enum alert_log_outcome outcome)
+		      enum alert_log_outcome outcome, uint8_t flags)
 {
 	struct alert_log_entry *e;
 
@@ -49,6 +49,7 @@ void alert_log_append(const struct same_header *h, int64_t received_utc,
 	memcpy(e->raw, h->raw, sizeof(e->raw));
 	e->received_utc = received_utc;
 	e->outcome = (uint8_t)outcome;
+	e->flags = flags;
 	s.q_len++;
 	s.appended++;
 }
@@ -79,6 +80,11 @@ uint32_t alert_log_count(void)
 	return (s.head < ALERT_LOG_SIZE ? s.head : ALERT_LOG_SIZE) + s.q_len;
 }
 
+uint32_t alert_log_stored(void)
+{
+	return s.head < ALERT_LOG_SIZE ? s.head : ALERT_LOG_SIZE;
+}
+
 uint32_t alert_log_appended(void)
 {
 	return s.appended;
@@ -87,6 +93,20 @@ uint32_t alert_log_appended(void)
 uint32_t alert_log_dropped(void)
 {
 	return s.dropped;
+}
+
+void alert_log_clear(void)
+{
+	char key[HAL_STORAGE_KEY_MAX + 1];
+
+	for (uint32_t slot = 0; slot < ALERT_LOG_SIZE; slot++) {
+		slot_key(slot, key, sizeof(key));
+		(void)hal_storage_delete(key);
+	}
+	(void)hal_storage_delete(KEY_HEAD);
+	s.head = 0;
+	s.q_start = 0;
+	s.q_len = 0;
 }
 
 int alert_log_read(uint32_t i, struct alert_log_entry *out)

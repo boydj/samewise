@@ -14,6 +14,9 @@ static struct {
 	bool utc_set;
 	struct hal_clock_timer *head; /* active timers, sorted by due time */
 	uint32_t fired;
+	bool hfxo;
+	uint32_t hfxo_starts;
+	uint32_t hfxo_misuse;
 } s;
 
 static void unlink_timer(struct hal_clock_timer *timer)
@@ -48,6 +51,9 @@ void clock_fake_reset(void)
 	s.utc_base_ms = 0;
 	s.utc_set = false;
 	s.fired = 0;
+	s.hfxo = false;
+	s.hfxo_starts = 0;
+	s.hfxo_misuse = 0;
 	while (s.head != NULL) {
 		struct hal_clock_timer *t = s.head;
 
@@ -60,6 +66,7 @@ void clock_fake_reset(void)
 void clock_fake_simulate_reset(void)
 {
 	s.utc_set = false;
+	s.hfxo = false; /* the chip reset stops the crystal */
 	s.utc_base_ms = 0;
 	while (s.head != NULL) {
 		struct hal_clock_timer *t = s.head;
@@ -165,4 +172,40 @@ void hal_clock_timer_stop(struct hal_clock_timer *timer)
 		unlink_timer(timer);
 		timer->active = false;
 	}
+}
+
+int hal_clock_hfxo_request(void)
+{
+	if (s.hfxo) {
+		s.hfxo_misuse++;
+		return -EALREADY;
+	}
+	s.hfxo = true;
+	s.hfxo_starts++;
+	return 0;
+}
+
+int hal_clock_hfxo_release(void)
+{
+	if (!s.hfxo) {
+		s.hfxo_misuse++;
+		return -EALREADY;
+	}
+	s.hfxo = false;
+	return 0;
+}
+
+bool clock_fake_hfxo_on(void)
+{
+	return s.hfxo;
+}
+
+uint32_t clock_fake_hfxo_starts(void)
+{
+	return s.hfxo_starts;
+}
+
+uint32_t clock_fake_hfxo_misuse(void)
+{
+	return s.hfxo_misuse;
 }

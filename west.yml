@@ -11,6 +11,9 @@
 manifest:
   version: "1.2"
 
+  # BabbleSim (nrf52_bsim Bluetooth tests) is in a group NCS filters out.
+  group-filter: [+babblesim]
+
   remotes:
     - name: ncs
       url-base: https://github.com/nrfconnect
@@ -28,6 +31,18 @@ manifest:
           - hal_nordic
           - nrfxlib
           - openthread
+          # Bluetooth: LE Secure Connections crypto (nrf_security) and MCUmgr.
+          - mbedtls
+          - oberon-psa-crypto
+          - tf-psa-crypto
+          - zcbor
+          # nrf52_bsim: the nRF hardware models.
+          - nrf_hw_models
+        # BabbleSim: the bsim manifest and its components under tools/bsim.
+        path-allowlist:
+          - tools/bsim
+          - tools/bsim/components
+          - tools/bsim/components/*
 
   self:
     path: samewise

@@ -3,8 +3,9 @@
  * drawing pixels from it comes in a later milestone.
  *
  * The alert manager fills the alert fields and the health supervisor the
- * warnings; ui_model_refresh() then picks the screen by precedence:
- * ALERTS OFF, alert, RESTARTED, warning, listening, standby.
+ * warnings, the Bluetooth service its prompts; ui_model_refresh() then picks
+ * the screen by precedence: ALERTS OFF, alert, Bluetooth, RESTARTED,
+ * warning, listening, standby.
  */
 
 #ifndef APP_UI_MODEL_H_
@@ -27,6 +28,7 @@ enum ui_screen {
 	UI_SCREEN_RESTARTED,  /* briefly, after a watchdog reset */
 	UI_SCREEN_ALERT,
 	UI_SCREEN_ALERTS_OFF, /* battery empty */
+	UI_SCREEN_BLUETOOTH,  /* window, passkey or confirmation; see ble_screen */
 };
 
 /** Warning reasons, as bits. */
@@ -62,6 +64,10 @@ struct ui_model {
 	bool restarted;
 	bool alerts_off;
 	uint8_t battery_percent;
+
+	/* From the Bluetooth service. */
+	uint8_t ble_screen; /* enum ble_screen; 0 = nothing to show */
+	uint32_t passkey;   /* while ble_screen is the passkey screen */
 };
 
 void ui_model_init(struct ui_model *ui);

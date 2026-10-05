@@ -506,3 +506,143 @@ ZTEST(alert_manager, test_unset_clock_year_floor_moves_forward)
 	header("ZCZC-WXR-RWT-048000+0015-3001200-KEWX/NWS-");
 	zassert_equal(hal_clock_utc_s(), utc(2027, 10, 27, 12, 0));
 }
+
+/* ---- Milestone 3 task 0 ---- */
+
+ZTEST(alert_manager, test_day_366_in_2027_expires_at_receive_plus_purge)
+{
+	struct alert_log_entry e;
+
+	zassert_ok(hal_clock_set_utc(utc(2027, 3, 1, 12, 0)));
+	header("ZCZC-WXR-TOR-048453+0030-3661200-KEWX/NWS-");
+	zassert_equal(state(), ALERT_STATE_ALERTING, "still alerts");
+	zassert_equal(m.stats.future_issue, 1, "distrusted issue time counted");
+	clock_fake_advance_ms(30 * MINUTE);
+	zassert_equal(state(), ALERT_STATE_STANDBY, "expires 30 minutes after receipt, not in 2028");
+	zassert_equal(alert_log_flush(), 1);
+	zassert_ok(alert_log_read(0, &e));
+	zassert_equal(e.outcome, ALERT_LOG_ALERTED);
+	zassert_true(e.flags & ALERT_LOG_FLAG_FUTURE_ISSUE, "logged as a distrusted issue time");
+}
+
+ZTEST(alert_manager, test_future_issue_15_minutes_distrusted_5_accepted)
+{
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 5, 19, 0)));
+	header("ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS-");
+	zassert_equal(m.stats.future_issue, 1);
+	zassert_equal(ui.expires_ms, hal_clock_uptime_ms() + 30 * MINUTE, "receive + purge");
+	key(HAL_INPUT_KEY_STBY);
+
+	header("ZCZC-WXR-SVR-048453+0030-2781905-KEWX/NWS-");
+	zassert_equal(m.stats.future_issue, 1, "5 minutes ahead is trusted");
+	zassert_equal(ui.expires_ms, hal_clock_uptime_ms() + 35 * MINUTE, "issue + purge");
+}
+
+ZTEST(alert_manager, test_other_counties_cannot_evict_a_matched_alert)
+{
+	char text[64];
+
+	header(TOR_LONG);
+	zassert_equal(m.stats.alerted, 1);
+	key(HAL_INPUT_KEY_STBY);
+	for (int i = 1; i <= 40; i++) {
+		snprintf(text, sizeof(text), "ZCZC-WXR-SVR-0400%02d+0100-2781930-KOUN/NWS-", i);
+		header(text);
+	}
+	zassert_equal(m.stats.not_matched, 40);
+	header(TOR_LONG);
+	zassert_equal(m.stats.duplicates, 1, "the re-broadcast is still suppressed");
+	zassert_equal(m.stats.alerted, 1);
+	zassert_equal(state(), ALERT_STATE_SILENCED, "no second alarm");
+	zassert_equal(m.dups.evictions, 0);
+}
+
+ZTEST(alert_manager, test_weekly_test_duplicates_still_suppressed)
+{
+	static const char rwt_elsewhere[] = "ZCZC-WXR-RWT-040000+0015-2791700-KOUN/NWS-";
+
+	header(rwt_elsewhere);
+	header(rwt_elsewhere);
+	zassert_equal(rwt_hook_calls, 1, "one weekly test, not two");
+	zassert_equal(m.stats.duplicates, 1);
+	zassert_equal(m.stats.rwt, 1);
+}
+
+ZTEST(alert_manager, test_rwt_never_jumps_a_set_clock_by_a_year)
+{
+	/* 2027 has no day 366; the only year with one nearby is 2028. */
+	zassert_ok(hal_clock_set_utc(utc(2027, 3, 1, 12, 0)));
+	header("ZCZC-WXR-RWT-048000+0015-3661200-KEWX/NWS-");
+	zassert_equal(hal_clock_utc_s(), utc(2027, 3, 1, 12, 0), "clock left alone");
+	zassert_equal(clock_sync_rejected(), 1, "the rejected correction is counted");
+	zassert_equal(rwt_hook_calls, 1, "it still counts as a weekly test for health");
+
+	/* Afterwards a matching TOR issued now still alerts (the clock is sane). */
+	header("ZCZC-WXR-TOR-048453+0030-0601200-KEWX/NWS-");
+	zassert_equal(state(), ALERT_STATE_ALERTING);
+}
+
+ZTEST(alert_manager, test_rwt_still_corrects_a_clock_hours_slow)
+{
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 5, 15, 0)));
+	header(RWT_1700);
+	zassert_equal(hal_clock_utc_s(), utc(2026, 10, 5, 17, 0), "2 hours is within a day");
+	zassert_equal(clock_sync_rejected(), 0);
+}
+
+ZTEST(alert_manager, test_test_alert_runs_patterns_and_is_logged_as_test)
+{
+	struct alert_log_entry e;
+
+	zassert_ok(alert_mgr_test_alert(&m));
+	zassert_equal(state(), ALERT_STATE_ALERTING);
+	zassert_equal(alert_out_fake_buzzer(), HAL_ALERT_PATTERN_ALERT);
+	zassert_equal(alert_out_fake_vibrate(), HAL_ALERT_PATTERN_WARNING);
+	zassert_equal(ui.screen, UI_SCREEN_ALERT);
+	zassert_str_equal(ui.event, ALERT_TEST_EVENT);
+	zassert_equal(alert_log_flush(), 1);
+	zassert_ok(alert_log_read(0, &e));
+	zassert_equal(e.outcome, ALERT_LOG_TEST);
+	zassert_equal(m.stats.alerted, 0, "not counted as a real alert");
+
+	clock_fake_advance_ms(ALERT_TEST_MS);
+	zassert_equal(state(), ALERT_STATE_STANDBY, "gone after its time");
+	zassert_equal(alert_out_fake_buzzer(), HAL_ALERT_PATTERN_OFF);
+	zassert_false(alert_out_fake_led());
+}
+
+ZTEST(alert_manager, test_test_alert_never_masks_a_real_alert)
+{
+	header(TOR_LONG);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY);
+	key(HAL_INPUT_KEY_STBY);
+	zassert_equal(state(), ALERT_STATE_SILENCED);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY, "not while silenced");
+	zassert_str_equal(ui.event, "TOR");
+
+	clock_fake_advance_ms(6 * 60 * MINUTE);
+	key(HAL_INPUT_KEY_BAND);
+	zassert_equal(state(), ALERT_STATE_LISTENING);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY, "not while listening");
+	zassert_equal(m.stats.test_alerts, 0);
+}
+
+ZTEST(alert_manager, test_last_rwt_time_recorded)
+{
+	zassert_equal(m.last_rwt_utc, -1);
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 3, 19, 5)));
+	header("ZCZC-WXR-RWT-048000+0015-2761900-KEWX/NWS-");
+	zassert_equal(m.last_rwt_utc, utc(2026, 10, 3, 19, 5));
+}
+
+ZTEST(alert_manager, test_clear_log)
+{
+	header(TOR_LONG);
+	zassert_equal(alert_log_flush(), 1);
+	header(TOA_TRAVIS);
+	zassert_equal(alert_log_count(), 2, "one stored, one queued");
+	alert_log_clear();
+	zassert_equal(alert_log_count(), 0);
+	alert_log_init();
+	zassert_equal(alert_log_count(), 0, "cleared in storage too");
+}
