@@ -27,6 +27,9 @@ long wx_host_file_write(int fd, const void *buf, unsigned long len);
 /** Close a descriptor. Returns 0 or -1. */
 int wx_host_file_close(int fd);
 
+/** Host monotonic clock in microseconds: wall time, for speed checks. */
+long long wx_host_monotonic_us(void);
+
 #ifdef __cplusplus
 }
 #endif

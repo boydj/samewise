@@ -32,39 +32,41 @@ Done when every test below passes in CI, a simulated week of standby runs in und
 
 Matching and filtering:
 
-- [ ] Exact county match; subdivision 0 on either side matches; differing non-zero subdivisions don't
-- [ ] County 000 matches any configured county in that state; state 00 matches everything
-- [ ] Travel mode uses only the travel list; an empty travel list accepts all locations
-- [ ] Each filter preset passes and blocks the right classes; RWT and RMT never alert but are logged
-- [ ] Unknown event codes are logged, never alerted
+- [x] Exact county match; subdivision 0 on either side matches; differing non-zero subdivisions don't
+- [x] County 000 matches any configured county in that state; state 00 matches everything
+- [x] Travel mode uses only the travel list; an empty travel list accepts all locations
+- [x] Each filter preset passes and blocks the right classes; RWT and RMT never alert but are logged
+- [x] Unknown event codes are logged, never alerted
 
 Duplicates and time:
 
-- [ ] A re-broadcast inside the purge window: one alert, one log entry
-- [ ] The same header after purge expiry alerts again
-- [ ] A Julian day 366 header received on January 1 is placed in the previous year
-- [ ] Duplicate suppression works with the clock unset
-- [ ] RWT sets an unset clock; corrects a 10-minute error; leaves a 2-minute error alone
-- [ ] A re-broadcast TOR with an old issue time never changes the clock
+- [x] A re-broadcast inside the purge window: one alert, one log entry
+- [x] The same header after purge expiry alerts again
+- [x] A Julian day 366 header received on January 1 is placed in the previous year
+- [x] Duplicate suppression works with the clock unset
+- [x] RWT sets an unset clock; corrects a 10-minute error; leaves a 2-minute error alone
+- [x] A re-broadcast TOR with an old issue time never changes the clock
 
 Alert states:
 
-- [ ] Buzzer for 2 minutes, then reminders every 5 minutes, ending at a key press
-- [ ] Unanswered reminders end at the purge time; the radio returns to standby
-- [ ] Warning and watch use different vibration patterns
-- [ ] Headphones in during an alert: buzzer off, amp on; NNNN ends audio and goes to Silenced
-- [ ] Headphones out during alert audio goes to Silenced
-- [ ] Key lock during an alert: only silence works; standby can't be turned off while locked
-- [ ] Listening ignores alerts, shows alerts paused, and returns to standby after 60 minutes idle
+- [x] Buzzer for 2 minutes, then reminders every 5 minutes, ending at a key press
+- [x] Unanswered reminders end at the purge time; the radio returns to standby
+- [x] Warning and watch use different vibration patterns
+- [x] Headphones in during an alert: buzzer off, amp on; NNNN ends audio and goes to Silenced
+- [x] Headphones out during alert audio goes to Silenced
+- [x] Key lock during an alert: only silence works; standby can't be turned off while locked
+- [x] Listening ignores alerts, shows alerts paused, and returns to standby after 60 minutes idle
 
 Health:
 
-- [ ] Injected decoder stall: watchdog starves, simulated reset, standby resumes and decodes the next header
-- [ ] 3 tuner faults trigger a tuner reset; persistent faults end in a watchdog reset
-- [ ] Signal below threshold for 10 minutes: NO SIGNAL and hourly chirps; recovery clears it
-- [ ] 8 days without an RWT: warning; the next RWT clears it
-- [ ] A week of standby with a scripted discharge: warnings at 20% and 5%, final beep and ship mode at 3.3 V
-- [ ] That week runs in under a minute of wall time
+- [x] Injected decoder stall: watchdog starves, simulated reset, standby resumes and decodes the next header
+- [x] 3 tuner faults trigger a tuner reset; persistent faults end in a watchdog reset
+- [x] Signal below threshold for 10 minutes: NO SIGNAL and hourly chirps; recovery clears it
+- [x] 8 days without an RWT: warning; the next RWT clears it
+- [x] A week of standby with a scripted discharge: warnings at 20% and 5%, final beep and ship mode at 3.3 V
+- [x] That week runs in under a minute of wall time
+
+Where the tests live: matching, filtering, time and duplicates in `tests/match/rules`; alert states, clock correction and the alert log in `tests/app/alert_manager`; health in `tests/app/health`; and the same behaviours end to end, with decoded audio and the week-long battery run, in `tests/scenario` (`tools/vectors` group `scenario`).
 
 ## Out of scope
 
