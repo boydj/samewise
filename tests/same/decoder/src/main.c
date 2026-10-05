@@ -207,8 +207,9 @@ ZTEST(same_decoder, test_malformed_headers_are_rejected)
 {
 	decode("malformed");
 	zassert_equal(r.n_headers, 0);
-	zassert_equal(r.stats.header_copies, 8 * 3, "every copy was framed");
-	zassert_equal(r.stats.parse_failures + r.stats.vote_failures, 8, "each group rejected");
+	/* MALFORMED in tools/vectors/build_vectors.py: 10 headers. */
+	zassert_equal(r.stats.header_copies, 10 * 3, "every copy was framed");
+	zassert_equal(r.stats.parse_failures + r.stats.vote_failures, 10, "each group rejected");
 }
 
 ZTEST(same_decoder, test_two_alerts_back_to_back)
