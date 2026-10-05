@@ -567,3 +567,25 @@ ZTEST(alert_manager, test_weekly_test_duplicates_still_suppressed)
 	zassert_equal(m.stats.duplicates, 1);
 	zassert_equal(m.stats.rwt, 1);
 }
+
+ZTEST(alert_manager, test_rwt_never_jumps_a_set_clock_by_a_year)
+{
+	/* 2027 has no day 366; the only year with one nearby is 2028. */
+	zassert_ok(hal_clock_set_utc(utc(2027, 3, 1, 12, 0)));
+	header("ZCZC-WXR-RWT-048000+0015-3661200-KEWX/NWS-");
+	zassert_equal(hal_clock_utc_s(), utc(2027, 3, 1, 12, 0), "clock left alone");
+	zassert_equal(clock_sync_rejected(), 1, "the rejected correction is counted");
+	zassert_equal(rwt_hook_calls, 1, "it still counts as a weekly test for health");
+
+	/* Afterwards a matching TOR issued now still alerts (the clock is sane). */
+	header("ZCZC-WXR-TOR-048453+0030-0601200-KEWX/NWS-");
+	zassert_equal(state(), ALERT_STATE_ALERTING);
+}
+
+ZTEST(alert_manager, test_rwt_still_corrects_a_clock_hours_slow)
+{
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 5, 15, 0)));
+	header(RWT_1700);
+	zassert_equal(hal_clock_utc_s(), utc(2026, 10, 5, 17, 0), "2 hours is within a day");
+	zassert_equal(clock_sync_rejected(), 0);
+}

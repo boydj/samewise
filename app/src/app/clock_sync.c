@@ -15,6 +15,7 @@
 static struct {
 	int64_t floor_utc;
 	bool dirty;
+	uint32_t rejected;
 	struct hal_clock_timer daily;
 } s;
 
@@ -37,6 +38,7 @@ void clock_sync_init(int64_t firmware_epoch_utc)
 	    stored > s.floor_utc) {
 		s.floor_utc = stored;
 	}
+	s.rejected = 0;
 	hal_clock_timer_init(&s.daily, daily, NULL);
 	(void)hal_clock_timer_start(&s.daily, DAY_MS, DAY_MS);
 }
@@ -59,11 +61,21 @@ enum clock_sync_result clock_sync_on_rwt(const struct same_header *h)
 	if (err <= CLOCK_SYNC_MAX_ERROR_S && err >= -CLOCK_SYNC_MAX_ERROR_S) {
 		return CLOCK_SYNC_KEPT;
 	}
+	if (err > CLOCK_SYNC_MAX_JUMP_S || err < -CLOCK_SYNC_MAX_JUMP_S) {
+		/* Wrong year (day 366 in a non-leap year): believe the clock. */
+		s.rejected++;
+		return CLOCK_SYNC_REJECTED;
+	}
 	if (hal_clock_set_utc(issue) != 0) {
 		return CLOCK_SYNC_NO_YEAR;
 	}
 	s.dirty = true;
 	return CLOCK_SYNC_CORRECTED;
+}
+
+uint32_t clock_sync_rejected(void)
+{
+	return s.rejected;
 }
 
 int clock_sync_flush(void)
