@@ -1,0 +1,4 @@
+name: samewise
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig

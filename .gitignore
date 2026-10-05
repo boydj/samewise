@@ -1,0 +1,4 @@
+build*/
+twister-out*/
+__pycache__/
+*.pyc

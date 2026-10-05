@@ -1,0 +1,26 @@
+menu "Pocket WX Radio"
+
+config WX_SAME
+	bool "SAME decoder and header parser"
+	help
+	  Streaming SAME decoder (services/same). Plain C99.
+
+menu "native_sim fakes"
+	depends on ARCH_POSIX
+
+config WX_FAKE_AUDIO_IN
+	bool "audio_in fake: WAV file reader"
+	select WX_FAKE_HOST_FILE
+
+config WX_FAKE_CLOCK
+	bool "clock fake: simulated time"
+
+config WX_FAKE_HOST_FILE
+	bool "Host file access for fakes and tests"
+	help
+	  Small shim over the host C library (open, read, write, close),
+	  built into the native simulator runner.
+
+endmenu
+
+endmenu
