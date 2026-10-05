@@ -50,7 +50,7 @@ Later targets: `xiao_ble` for the XIAO prototype (confirm the board name for the
 
 ## Rules
 
-- `app/` and `services/` include only `hal/*.h`. Driver headers and Zephyr device APIs appear only in `drivers/` and `fakes/`.
+- `app/` and `services/` include only `hal/*.h`. Driver headers and Zephyr device APIs appear only in `drivers/` and `fakes/`. The one exception is `app/src/main.c`, the composition root: it may include `drivers/` and `fakes/` headers to wire them into an image, and holds no application logic.
 - `services/same/` is plain C99: it takes int16 sample buffers and returns results through callbacks.
 - No heap in the alert path; static buffers sized in headers.
 - Single-precision float is fine (Cortex-M4F); no double in hot loops.

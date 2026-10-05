@@ -28,6 +28,13 @@
 extern "C" {
 #endif
 
+/** Decoder events as they reach the alert manager, for logs and benchmarks. */
+struct radio_trace {
+	void (*header)(void *user, const struct same_header *h);
+	void (*eom)(void *user);
+	void *user;
+};
+
 struct radio {
 	struct settings settings;
 	struct ui_model ui;
@@ -37,6 +44,7 @@ struct radio {
 	struct ble ble;
 	uint32_t idle_samples; /* accounted by radio_idle_audio(), never decoded */
 	uint32_t settings_errors;
+	const struct radio_trace *trace;
 };
 
 /**
@@ -44,6 +52,9 @@ struct radio {
  * supervisor (which starts the watchdog), and tune the weather channel.
  */
 void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmware_epoch_utc);
+
+/** Report decoder events to trace (NULL: none). Call after radio_boot(). */
+void radio_set_trace(struct radio *r, const struct radio_trace *trace);
 
 /**
  * Start the Bluetooth service on a stack port (ble_zephyr.c on hardware and

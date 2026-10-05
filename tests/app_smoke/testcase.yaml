@@ -5,6 +5,12 @@ tests:
       - native_sim
     harness: console
     harness_config:
-      type: one_line
+      type: multi_line
+      ordered: true
       regex:
         - "Pocket WX Radio firmware .*"
+        - "WX BENCH START"
+        - "WX HEADER ZCZC-WXR-TOR-048453\\+0030-2781915-KEWX/NWS-"
+        - "WX EOM"
+        - "WX BENCH END samples=89524 .*"
+        - "WX BENCH DONE"

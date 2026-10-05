@@ -12,6 +12,8 @@
 #ifndef SERVICES_BLE_BLE_ZEPHYR_H_
 #define SERVICES_BLE_BLE_ZEPHYR_H_
 
+#include <zephyr/kernel.h>
+
 #include "services/ble/ble_service.h"
 
 #ifdef __cplusplus
@@ -26,6 +28,14 @@ extern const struct ble_port ble_zephyr_port;
  * events to b. Call after ble_init(b, ..., &ble_zephyr_port, NULL).
  */
 int ble_zephyr_init(struct ble *b);
+
+/**
+ * Stack callbacks enter the service holding this mutex (the radio's app
+ * lock). Port operations are queued and run on the system work queue
+ * without it, so the service never blocks on the Bluetooth host while
+ * holding the lock. NULL (the default): no lock.
+ */
+void ble_zephyr_set_lock(struct k_mutex *lock);
 
 #ifdef __cplusplus
 }
