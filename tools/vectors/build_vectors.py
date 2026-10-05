@@ -122,7 +122,20 @@ def _snr_group():
             for snr in SNR_POINTS}
 
 
-GROUPS = {"decoder": _decoder_group, "negative": _negative_group, "snr": _snr_group}
+def _scenario_group():
+    """Alerts for the scenario tests: Travis County, TX (048453) is home."""
+    tor = "ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS-"
+    return {
+        "tor": ([tor], O(lead_s=0.5, trail_s=0.5)),
+        "tor_eom": ([tor, "EOM"], O(lead_s=0.5, tone1050_s=8, message_gap_s=20, trail_s=0.5)),
+        "toa": (["ZCZC-WXR-TOA-048453+0100-2781920-KEWX/NWS-"], O(lead_s=0.5, trail_s=0.5)),
+        "svr_elsewhere": (["ZCZC-WXR-SVR-040109+0045-2781925-KOUN/NWS-"], O(lead_s=0.5, trail_s=0.5)),
+        "rwt": (["ZCZC-WXR-RWT-048000+0015-2791700-KEWX/NWS-"], O(lead_s=0.5, trail_s=0.5)),
+    }
+
+
+GROUPS = {"decoder": _decoder_group, "negative": _negative_group, "snr": _snr_group,
+          "scenario": _scenario_group}
 
 
 def _c_str(s: str) -> str:

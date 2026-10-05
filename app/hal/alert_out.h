@@ -20,6 +20,8 @@ enum hal_alert_pattern {
 	HAL_ALERT_PATTERN_REMINDER,   /* 3-second reminder */
 	HAL_ALERT_PATTERN_CHIRP,      /* single short warning chirp */
 	HAL_ALERT_PATTERN_FINAL_BEEP, /* long beep before ALERTS OFF */
+	HAL_ALERT_PATTERN_WARNING,    /* vibration for a warning-class alert */
+	HAL_ALERT_PATTERN_WATCH,      /* vibration for any other alert: felt as different */
 };
 
 /** Start a buzzer pattern; HAL_ALERT_PATTERN_OFF stops it. Never blocks. */

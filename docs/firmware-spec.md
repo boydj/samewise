@@ -85,9 +85,9 @@ An alert fires only after a header is decoded, voted across its copies, matched 
 3. **Framing.** 8-bit bytes, least significant bit first; collect until the header's closing dash, or NNNN for end of message. Keep only the low 7 bits of each character: 47 CFR 11.31 sends 7-bit ASCII with an eighth null bit that may be 0 or 1. A header copy also ends when the carrier drops or at 252 characters, the longest valid header.
 4. **Voting.** Hold up to 3 copies of a header; majority-vote each byte position, and accept 2 matching copies if the third is lost. One copy alone is never accepted. Vote after the third copy, or once 5 seconds pass after the latest copy with no new copy arriving (initial value; tune with recordings). End of message needs only one NNNN copy (at least 3 of its 4 characters); copies within 5 seconds of each other are one event, and a pending header is voted first so events stay in broadcast order.
 5. **Parsing.** ZCZC, originator, 3-letter event code, 1 to 31 location codes, purge time, issue time (Julian day, UTC) and station ID. Reject anything malformed: fixed field lengths, an originator of EAS, CIV, WXR or PEP (the only codes 47 CFR 11.31(d)(1) allows), 3 upper-case letters for the event code, digits in location, purge and issue fields, Julian day 001–366, hour 00–23, minute 00–59, and a station ID of 8 printable characters other than '-' and '+' (11.31(b) reserves both as separators). Event codes are not checked against a list here; the event table classifies them. Purge time needs only 4 digits with minutes 00–59: 11.31 specifies 15-minute steps up to an hour and 30-minute steps beyond, but nonstandard increments are accepted so a warning is never dropped over them.
-6. **Matching.** A location matches when its state and county match a configured code. Subdivision digit 0 means the whole county, and county 000 means the whole state. Travel mode with no travel counties accepts every location from the current transmitter.
-7. **Filtering.** Event class comes from the event table. Default: warnings and watches alert; weekly and monthly tests (RWT, RMT) never alert but are logged for the health check; everything else is logged only.
-8. **Duplicates.** Suppress repeats with the same originator, event, locations, issue time and station until the purge time expires.
+6. **Matching.** A location matches when its state and county match a configured code. Subdivision digit 0 on either side means the whole county; otherwise the subdivisions must be equal. County 000 on either side means the whole state, so a configured 048000 matches every Texas county. State 00 in an alert means all of the U.S. An empty county list accepts every location: travel mode with no travel counties, and home mode before any home county is set, so an unconfigured radio still warns.
+7. **Filtering.** Event class comes from the event table. Presets: warnings only; warnings and watches (default); all, meaning every class except tests; or a custom bitmap over the event table. Tests (RWT, RMT, NPT, DMO) never alert under any preset, even a custom one, but are logged, and RWT feeds the health check. Codes missing from the table are logged, never alerted. Urgent codes whose names don't say Warning (EAN, EVI, CAE, CDW, CEM, LAE, SPW) are classed as warnings.
+8. **Duplicates.** Suppress repeats with the same originator, event, locations (in any order), issue time and station until the alert expires: issue time plus purge time, or receive time plus purge time while the clock is unset. Headers carry no year, so the year is the one that puts the issue time closest to now (a day 365 or 366 header received on January 1 belongs to the previous year). A header that has already expired when it arrives, with the clock set, is logged as expired and never alerts.
 
 Alert states:
 
@@ -99,18 +99,21 @@ Alert states:
 | Alerting | No key | Repeats every 5 min until a key |
 | Alerting | Any key | Silenced (alert on screen, LED) |
 | Alerting | Headphones in | Alert audio (broadcast in headphones) |
-| Alert audio | NNNN or headphones out | Silenced |
+| Alert audio | NNNN, headphones out or any key | Silenced |
 | Silenced | Purge time passes | Standby |
+| Alerting, Alert audio or Silenced | New matching alert (not a duplicate) | Alerting, or Alert audio if headphones are in |
+| Standby | Matching header with headphones already in | Alert audio |
 
-A key press silences an alert but keeps it on screen; only its purge time returns the radio to standby.
+A key press silences an alert but keeps it on screen; only its purge time returns the radio to standby. With several alerts active the screen shows the newest, and the radio returns to standby when the last one expires. While Silenced, tune and band presses are ignored. While Listening the tuner isn't on weather, so decoded headers are ignored entirely.
 
 Alert behaviour:
 
-- An unanswered alert sounds the buzzer and vibration for 2 minutes, then a 3-second reminder every 5 minutes until a key press or the purge time.
+- An unanswered alert sounds the buzzer and vibration for 2 minutes, then a 3-second reminder every 5 minutes (the first 5 minutes after the 2-minute period ends) until a key press or the purge time.
 - Plugging in headphones during an alert stops the buzzer and plays the broadcast; end of message (NNNN) ends the audio.
-- The key lock blocks every button except the silence press during an alert.
+- The key lock blocks every button except the silence press during an alert. During an alert any key only silences, locked or not; outside an alert the lock ignores every key, so standby can't be turned off while locked. Ignored presses don't count as input for the 60-minute listening timeout.
 - While you listen to AM or FM the single tuner can't monitor weather: the screen shows alerts paused, and the radio returns to standby after 60 minutes without input.
-- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old.
+- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old. Headers carry no year, so setting an unset clock takes the first year at or after the last UTC the radio stored (or the firmware's epoch). That stored time is refreshed on every clock set and daily.
+- The alert log keeps the last 16 non-duplicate headers that matched the counties, plus every test, each with its received time and outcome (alerted, filtered, unknown event, expired). Entries wait in RAM and are written to flash at low priority, so the alert path never waits on flash.
 - Vibration uses distinct patterns for warnings and watches, so the class is felt without looking.
 
 ## Health monitoring
@@ -127,7 +130,16 @@ A supervisor thread owns every check that could silently stop alerts, and only i
 | Battery critical | 5% state of charge | Chirp every 30 minutes |
 | Battery empty | 3.3 V cell voltage | Final long beep, ALERTS OFF screen, charger ship mode |
 
-The weekly-test check is the only end-to-end proof that antenna, tuner and decoder work together, so it is never disabled. Signal-quality thresholds come from bring-up measurements.
+The weekly-test check is the only end-to-end proof that antenna, tuner and decoder work together, so it is never disabled. Signal-quality thresholds come from bring-up measurements; until then the no-signal threshold is a configuration value (SNR below 10 dB).
+
+How the checks run:
+
+- The supervisor ticks once a second. It feeds the watchdog only while audio blocks and decoder progress are under 2 seconds old and a valid tuner status is under 10 seconds old. While Listening the tuner is on AM or FM and weather decoding stops, so only the tuner status counts. A stall therefore resets the radio within about 11 seconds.
+- After a watchdog reset the count of such resets is kept in storage, RESTARTED shows for 10 seconds, and the radio resumes standby. The clock and the duplicate list are lost with RAM, as on the real board.
+- A tuner fault (3 consecutive failed or invalid status reads) power-cycles the tuner and re-tunes the last weather frequency. If that doesn't help, the stale tuner status starves the watchdog.
+- No signal is judged only on weather (not while Listening), and any recovery restarts its 10 minutes. No weekly test counts 8 days from boot or the last RWT. Either shows the warning screen with its own reason line and chirps at once, then hourly.
+- Battery is read once a minute. A warning clears when charging or 5 points above its threshold.
+- Chirps never sound over an Alerting or Alert audio state; the warning is still recorded, and the alert outranks it on screen.
 
 ## Power modes and budget
 
@@ -187,5 +199,5 @@ The iPhone app is built against a macOS mock peripheral that implements the same
 - [ ] Which signal-quality thresholds mean no signal? Set from bring-up measurements.
 - [ ] How much current do the buzzer and vibration draw during alerts?
 - [ ] Are 16 counties and 2 bonds the right limits?
-- [ ] What does the initial event table contain? Derive it from the NWS SAME event code list.
+- [x] What does the initial event table contain? The 53 operational codes on the NWS "NWR NWS Event Codes" page (weather.gov/nwr/eventcodes, printed Oct 4, 2026), plus EAN, NIC, NPT, MEP and NMN from 47 CFR 11.31 Table 2, which the NWS page doesn't list: 58 codes in `app/services/match/event_table_default.c`. Classes follow the FCC naming convention (W warning, A watch, S statement). TOR, SVR, EVI, EAN, CAE, CEM and LAE are warnings; BLU, TOE, ADR, NIC, NMN and MEP are advisories; RWT, RMT, NPT and DMO are tests.
 - [x] Check the decoder's 47 CFR 11.31 details against the regulation text (eCFR, up to date as of Oct 1, 2026). Confirmed: 7-bit ASCII with an eighth null bit of 0 or 1, 520.83 bit/s with 1.92 ms bits, mark 2083.3 Hz and space 1562.5 Hz, 16 bytes of 0xAB before every header and EOM, one-second pauses between the 3 copies, up to 31 locations, P = 0 for a whole county, CCC 000 for a whole state and SS 00 for all of the U.S. Changed to match: only EAS, CIV, WXR and PEP originators, no '+' in the station ID, and the EAS two-tone attention signal added to negative audio.

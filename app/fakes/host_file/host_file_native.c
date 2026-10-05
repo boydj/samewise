@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
 
 int wx_host_file_open_read(const char *path)
@@ -48,4 +49,12 @@ long wx_host_file_write(int fd, const void *buf, unsigned long len)
 int wx_host_file_close(int fd)
 {
 	return close(fd);
+}
+
+long long wx_host_monotonic_us(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (long long)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
 }

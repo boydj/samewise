@@ -24,6 +24,13 @@ void clock_fake_reset(void);
  */
 void clock_fake_advance_ms(int64_t ms);
 
+/**
+ * Simulated device reset: every timer is dropped (RAM is lost) and UTC is
+ * forgotten (the RTC restarts). Uptime keeps counting, because it is the
+ * simulation's own time base. Safe to call from a timer callback.
+ */
+void clock_fake_simulate_reset(void);
+
 /** Number of timer callbacks run since reset. */
 uint32_t clock_fake_fired_count(void);
 

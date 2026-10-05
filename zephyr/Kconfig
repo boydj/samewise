@@ -5,6 +5,16 @@ config WX_SAME
 	help
 	  Streaming SAME decoder (services/same). Plain C99.
 
+config WX_MATCH
+	bool "Event table, matcher, filter and duplicates"
+	help
+	  services/match. Plain C99.
+
+config WX_APP_LOGIC
+	bool "Application logic: settings, alert manager, health supervisor"
+	select WX_SAME
+	select WX_MATCH
+
 menu "native_sim fakes"
 	depends on ARCH_POSIX
 
@@ -14,6 +24,29 @@ config WX_FAKE_AUDIO_IN
 
 config WX_FAKE_CLOCK
 	bool "clock fake: simulated time"
+
+config WX_FAKE_WATCHDOG
+	bool "watchdog fake: starvation triggers a simulated reset"
+	help
+	  Uses hal/clock.h timers, so starvation happens in simulated time.
+
+config WX_FAKE_STORAGE
+	bool "storage fake: records in memory, surviving simulated resets"
+
+config WX_FAKE_ALERT_OUT
+	bool "alert_out fake: timestamped log of buzzer, vibration and LED"
+
+config WX_FAKE_AUDIO_OUT
+	bool "audio_out fake: amplifier and routing state"
+
+config WX_FAKE_INPUT
+	bool "input fake: scripted key, lock and headphone events"
+
+config WX_FAKE_TUNER
+	bool "tuner fake: scripted signal and faults, records calls"
+
+config WX_FAKE_BATTERY
+	bool "battery fake: scripted discharge curve, records ship mode"
 
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"

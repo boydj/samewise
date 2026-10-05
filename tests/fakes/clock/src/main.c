@@ -133,6 +133,23 @@ ZTEST(clock_fake, test_restart_replaces_schedule)
 	zassert_equal(log.at[0], 15);
 }
 
+ZTEST(clock_fake, test_simulated_reset_drops_timers_and_utc)
+{
+	hal_clock_timer_init(&a, record, (void *)1);
+	hal_clock_timer_init(&b, record, (void *)2);
+	zassert_ok(hal_clock_timer_start(&a, 10, 10));
+	zassert_ok(hal_clock_timer_start(&b, 20, 0));
+	zassert_ok(hal_clock_set_utc(1790000000));
+	clock_fake_advance_ms(5);
+	clock_fake_simulate_reset();
+	zassert_false(a.active);
+	zassert_false(b.active);
+	zassert_equal(hal_clock_utc_s(), -1, "RTC restarted");
+	zassert_equal(hal_clock_uptime_ms(), 5, "simulation time keeps going");
+	clock_fake_advance_ms(100);
+	zassert_equal(log.n, 0, "no timer survives the reset");
+}
+
 ZTEST(clock_fake, test_week_runs_faster_than_real_time)
 {
 	const int64_t week_ms = 7LL * 24 * 3600 * 1000;

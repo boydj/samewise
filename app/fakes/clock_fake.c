@@ -57,6 +57,19 @@ void clock_fake_reset(void)
 	}
 }
 
+void clock_fake_simulate_reset(void)
+{
+	s.utc_set = false;
+	s.utc_base_ms = 0;
+	while (s.head != NULL) {
+		struct hal_clock_timer *t = s.head;
+
+		s.head = t->next;
+		t->next = NULL;
+		t->active = false;
+	}
+}
+
 void clock_fake_advance_ms(int64_t ms)
 {
 	int64_t target = s.now_ms + (ms > 0 ? ms : 0);
