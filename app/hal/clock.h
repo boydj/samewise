@@ -1,7 +1,9 @@
 /*
  * Clock interface: monotonic uptime, UTC wall time and timers.
  *
- * The board uses the nRF52 RTC on the 32.768 kHz crystal. The native_sim
+ * The board uses the nRF52 RTC on the 32.768 kHz crystal; the 32 MHz
+ * crystal runs only while Bluetooth needs it (services/power counts the
+ * requests and calls hal_clock_hfxo_request/release). The native_sim
  * fake (fakes/clock_fake.h) runs simulated time that advances only when a
  * test asks, so days can pass in milliseconds.
  */
@@ -30,6 +32,12 @@ int hal_clock_set_utc(int64_t utc_s);
  * between phone syncs). -EINVAL if UTC was never set.
  */
 int hal_clock_adjust_utc(int32_t delta_s);
+
+/** Start the 32 MHz crystal. Called by the power manager only, once per off-to-on. */
+int hal_clock_hfxo_request(void);
+
+/** Stop the 32 MHz crystal; the chip falls back to its internal oscillator. */
+int hal_clock_hfxo_release(void);
 
 struct hal_clock_timer;
 

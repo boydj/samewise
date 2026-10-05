@@ -8,6 +8,7 @@
 #ifndef FAKES_CLOCK_FAKE_H_
 #define FAKES_CLOCK_FAKE_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -33,6 +34,15 @@ void clock_fake_simulate_reset(void);
 
 /** Number of timer callbacks run since reset. */
 uint32_t clock_fake_fired_count(void);
+
+/** Whether the 32 MHz crystal is running. */
+bool clock_fake_hfxo_on(void);
+
+/** Off-to-on starts of the 32 MHz crystal since reset. */
+uint32_t clock_fake_hfxo_starts(void);
+
+/** Calls to hal_clock_hfxo_request() while already on, or release while off. */
+uint32_t clock_fake_hfxo_misuse(void);
 
 #ifdef __cplusplus
 }

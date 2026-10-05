@@ -2,6 +2,7 @@
  * Alert manager: the alert state machine.
  */
 
+#include <errno.h>
 #include <string.h>
 
 #include "app/alert_log.h"
@@ -232,6 +233,7 @@ void alert_mgr_init(struct alert_mgr *m, const struct settings *settings, struct
 	m->settings = settings;
 	m->ui = ui;
 	m->state = ALERT_STATE_STANDBY;
+	m->last_rwt_utc = -1;
 	m->locked = hal_input_locked() != 0;
 	m->headphones = hal_input_headphones() != 0;
 	dup_init(&m->dups);
@@ -273,6 +275,7 @@ void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h)
 	if (is_rwt) {
 		m->stats.rwt++;
 		(void)clock_sync_on_rwt(h);
+		m->last_rwt_utc = hal_clock_utc_s();
 		if (m->on_rwt != NULL) {
 			m->on_rwt(m->rwt_user);
 		}
@@ -316,6 +319,26 @@ void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h)
 	alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_ALERTED, flags);
 	add_active(m, h, e->cls, matched, expires);
 	enter(m, m->headphones ? ALERT_STATE_ALERT_AUDIO : ALERT_STATE_ALERTING);
+}
+
+int alert_mgr_test_alert(struct alert_mgr *m)
+{
+	struct same_header h;
+	int64_t now_ms = hal_clock_uptime_ms();
+
+	if (m->state != ALERT_STATE_STANDBY) {
+		return -EBUSY;
+	}
+	memset(&h, 0, sizeof(h));
+	strcpy(h.originator, "WXR");
+	strcpy(h.event, ALERT_TEST_EVENT);
+	strcpy(h.station, "TEST");
+	strcpy(h.raw, "TEST ALERT");
+	m->stats.test_alerts++;
+	alert_log_append(&h, hal_clock_utc_s(), ALERT_LOG_TEST, 0);
+	add_active(m, &h, EVENT_CLASS_WARNING, 0, now_ms + ALERT_TEST_MS);
+	enter(m, ALERT_STATE_ALERTING);
+	return 0;
 }
 
 void alert_mgr_on_eom(struct alert_mgr *m)

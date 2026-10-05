@@ -38,6 +38,10 @@ extern "C" {
 #define ALERT_CONTINUOUS_MS       (2U * 60U * 1000U)
 #define ALERT_REMINDER_PERIOD_MS  (5U * 60U * 1000U)
 #define LISTENING_IDLE_MS         (60U * 60U * 1000U)
+/** A test alert stays on screen this long unless a key silences it first. */
+#define ALERT_TEST_MS             ALERT_CONTINUOUS_MS
+/** The event a test alert shows: Practice/Demo Warning. */
+#define ALERT_TEST_EVENT          "DMO"
 
 enum alert_state {
 	ALERT_STATE_LISTENING,
@@ -68,6 +72,7 @@ struct alert_mgr_stats {
 	uint32_t future_issue; /* issue time distrusted: expiry from receipt */
 	uint32_t rwt;
 	uint32_t displaced; /* active alerts pushed out when the list was full */
+	uint32_t test_alerts;
 };
 
 typedef void (*alert_mgr_rwt_cb)(void *user);
@@ -85,6 +90,7 @@ struct alert_mgr {
 	struct hal_clock_timer reminder;
 	struct hal_clock_timer purge;
 	struct hal_clock_timer idle;
+	int64_t last_rwt_utc; /* -1 until an RWT arrives with the clock set */
 	alert_mgr_rwt_cb on_rwt;
 	void *rwt_user;
 	struct alert_mgr_stats stats;
@@ -101,6 +107,14 @@ void alert_mgr_set_rwt_hook(struct alert_mgr *m, alert_mgr_rwt_cb cb, void *user
 
 /** A voted, parsed header from the SAME decoder. */
 void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h);
+
+/**
+ * Test alert from the phone: the warning patterns and the alert screen for
+ * ALERT_TEST_MS, logged as ALERT_LOG_TEST, never added to the duplicate
+ * store. Only from Standby, so it can't mask a real alert or interrupt
+ * listening: -EBUSY otherwise.
+ */
+int alert_mgr_test_alert(struct alert_mgr *m);
 
 /** End of message from the SAME decoder. */
 void alert_mgr_on_eom(struct alert_mgr *m);

@@ -83,6 +83,26 @@
 	  "u8 schema, u8 command, u8 result (0 done, 1 awaiting confirmation, 2 cancelled, 3 "    \
 	  "rejected)")
 
+/*
+ * ATT errors a write or read can return, besides the stack's own
+ * (insufficient authentication or encryption on an unbonded link).
+ * X(id, code, meaning)
+ */
+#define WX_GATT_ERRORS(X)                                                                         \
+	X(LENGTH, 0x0D, "truncated, oversized or trailing bytes")                                  \
+	X(VALUE, 0x13, "a field out of range or malformed; nothing changed")                       \
+	X(SCHEMA, 0x80, "unsupported schema version; nothing changed")                             \
+	X(STORAGE, 0x81, "applied, but saving to flash failed; lost at the next restart")         \
+	X(SEQUENCE, 0x82, "event table entry or commit out of order")                             \
+	X(BUSY, 0x83, "a command is waiting for confirmation on the radio")                       \
+	X(INDEX, 0x84, "selected index is past the end of the list")
+
+enum wx_gatt_err {
+#define WX_GATT_ERR_ENUM(id, code, meaning) WX_GATT_ERR_##id = code,
+	WX_GATT_ERRORS(WX_GATT_ERR_ENUM)
+#undef WX_GATT_ERR_ENUM
+};
+
 enum wx_gatt_chr {
 #define WX_GATT_ENUM(id, name, offset, props, max_len, schema, desc) WX_GATT_CHR_##id,
 	WX_GATT_CHARACTERISTICS(WX_GATT_ENUM)

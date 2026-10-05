@@ -12,6 +12,7 @@
 #ifndef SERVICES_BLE_CODEC_H_
 #define SERVICES_BLE_CODEC_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -152,6 +153,9 @@ int codec_decode_filter(const uint8_t *buf, size_t len, struct codec_filter *out
 /* Time: u8 schema, i64 UTC, u8 tz_len, TZ characters (validated by tz.h separately). */
 size_t codec_encode_time(const struct codec_time *v, uint8_t *buf);
 int codec_decode_time(const uint8_t *buf, size_t len, struct codec_time *out);
+
+/** Whether kHz is a tunable frequency in band (FM 87.5-108 MHz, AM 520-1710 kHz, WB 25 kHz raster). */
+bool codec_preset_valid(uint8_t band, uint32_t khz);
 
 /* Presets: u8 schema, u8 count, count x (u8 band, u32 kHz in band range). */
 size_t codec_encode_presets(const struct codec_presets *v, uint8_t *buf);

@@ -17,10 +17,24 @@ config WX_BLE_CODEC
 	help
 	  services/ble codec and POSIX TZ parser. Plain C99.
 
+config WX_BLE_SERVICE
+	bool "Bluetooth settings service and connection policy"
+	select WX_BLE_CODEC
+	select WX_POWER
+	help
+	  services/ble/ble_service.c: characteristics and policy over a port
+	  table, so it runs on native_sim without a controller.
+
+config WX_POWER
+	bool "Power manager"
+	help
+	  services/power: 32 MHz crystal requests.
+
 config WX_APP_LOGIC
 	bool "Application logic: settings, alert manager, health supervisor"
 	select WX_SAME
 	select WX_MATCH
+	select WX_BLE_SERVICE
 
 menu "native_sim fakes"
 	depends on ARCH_POSIX

@@ -75,6 +75,18 @@ Connection rules:
 - BAND + STBY opens a 60-second pairing window: LE Secure Connections, passkey shown on the LCD, the radio acting as display-only.
 - At most 2 bonds; pairing a third replaces the oldest after on-screen confirmation.
 - On connect, the app writes Time, and in travel mode also Travel counties.
+- Confirmations on the radio (third bond, factory reset): long-press STBY confirms; any other key, 30 seconds, or (for a reset) the phone disconnecting cancels.
+- Keys open windows only from Standby or Listening with the lock off; a press that silences an alert does nothing else. One connection at a time.
+- The 32 MHz crystal is requested while a window is open or a phone is connected.
+
+Behaviour of the characteristics:
+
+- Characteristics answer only an LE Secure Connections authenticated link.
+- Writes are validated completely before anything changes; a rejected write returns an ATT error from `docs/gatt.json` and changes nothing. A storage failure returns its own error: the value is in effect until the next restart.
+- Every accepted settings write notifies Status. Status also notifies when battery percent, health flags, lock or channel change, or SNR or RSSI moves 3 dB from the last notified value. Hours left reads 0xFFFF until the power manager estimates it.
+- Event table writes are staged: begin (version, count), entries in index order, commit. An empty table is refused, since it would silence every alert.
+- Alert log notifies its newest entry when one is stored.
+- Control: a test alert runs the warning patterns and the alert screen for 2 minutes, shows Practice/Demo Warning and is logged as a test; it is refused unless the radio is in Standby, so it can never mask a real alert. Results arrive as indications.
 
 ## SAME decoding and alert logic
 

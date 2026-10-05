@@ -6,6 +6,8 @@
   promotes float to double implicitly.
 - app/ and services/ include only hal/ interfaces for hardware: no driver
   headers, Zephyr device APIs or fakes.
+- In services/ble, only ble_zephyr.c (the binding to Zephyr's Bluetooth
+  host) includes Zephyr headers, so the service logic runs on native_sim.
 """
 
 import re
@@ -71,6 +73,13 @@ class AppUsesOnlyHal(unittest.TestCase):
         for src in sources(APP / "src", APP / "services"):
             for inc in includes(src):
                 self.assertIsNone(self.FORBIDDEN.match(inc), f"{src.relative_to(ROOT)} includes {inc}")
+
+    def test_only_the_binding_includes_zephyr_in_ble(self):
+        for src in sources(BLE):
+            if src.name == "ble_zephyr.c":
+                continue
+            for inc in includes(src):
+                self.assertFalse(inc.startswith("zephyr/"), f"{src.relative_to(ROOT)} includes {inc}")
 
     def test_hal_headers_are_standalone(self):
         hal = sorted((APP / "hal").glob("*.h"))

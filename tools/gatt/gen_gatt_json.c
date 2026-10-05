@@ -47,6 +47,13 @@ int main(void)
 	first = 0;
 	WX_GATT_CHARACTERISTICS(WX_GATT_JSON)
 #undef WX_GATT_JSON
+	printf("\n  ],\n  \"errors\": [\n");
+	first = 1;
+#define WX_GATT_ERR_JSON(id, code, meaning)                                                       \
+	printf("%s    {\"name\": \"" #id "\", \"code\": %d, \"meaning\": \"%s\"}", first ? "" : ",\n", code, meaning); \
+	first = 0;
+	WX_GATT_ERRORS(WX_GATT_ERR_JSON)
+#undef WX_GATT_ERR_JSON
 	printf("\n  ]\n}\n");
 	return 0;
 }

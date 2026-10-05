@@ -589,3 +589,60 @@ ZTEST(alert_manager, test_rwt_still_corrects_a_clock_hours_slow)
 	zassert_equal(hal_clock_utc_s(), utc(2026, 10, 5, 17, 0), "2 hours is within a day");
 	zassert_equal(clock_sync_rejected(), 0);
 }
+
+ZTEST(alert_manager, test_test_alert_runs_patterns_and_is_logged_as_test)
+{
+	struct alert_log_entry e;
+
+	zassert_ok(alert_mgr_test_alert(&m));
+	zassert_equal(state(), ALERT_STATE_ALERTING);
+	zassert_equal(alert_out_fake_buzzer(), HAL_ALERT_PATTERN_ALERT);
+	zassert_equal(alert_out_fake_vibrate(), HAL_ALERT_PATTERN_WARNING);
+	zassert_equal(ui.screen, UI_SCREEN_ALERT);
+	zassert_str_equal(ui.event, ALERT_TEST_EVENT);
+	zassert_equal(alert_log_flush(), 1);
+	zassert_ok(alert_log_read(0, &e));
+	zassert_equal(e.outcome, ALERT_LOG_TEST);
+	zassert_equal(m.stats.alerted, 0, "not counted as a real alert");
+
+	clock_fake_advance_ms(ALERT_TEST_MS);
+	zassert_equal(state(), ALERT_STATE_STANDBY, "gone after its time");
+	zassert_equal(alert_out_fake_buzzer(), HAL_ALERT_PATTERN_OFF);
+	zassert_false(alert_out_fake_led());
+}
+
+ZTEST(alert_manager, test_test_alert_never_masks_a_real_alert)
+{
+	header(TOR_LONG);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY);
+	key(HAL_INPUT_KEY_STBY);
+	zassert_equal(state(), ALERT_STATE_SILENCED);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY, "not while silenced");
+	zassert_str_equal(ui.event, "TOR");
+
+	clock_fake_advance_ms(6 * 60 * MINUTE);
+	key(HAL_INPUT_KEY_BAND);
+	zassert_equal(state(), ALERT_STATE_LISTENING);
+	zassert_equal(alert_mgr_test_alert(&m), -EBUSY, "not while listening");
+	zassert_equal(m.stats.test_alerts, 0);
+}
+
+ZTEST(alert_manager, test_last_rwt_time_recorded)
+{
+	zassert_equal(m.last_rwt_utc, -1);
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 3, 19, 5)));
+	header("ZCZC-WXR-RWT-048000+0015-2761900-KEWX/NWS-");
+	zassert_equal(m.last_rwt_utc, utc(2026, 10, 3, 19, 5));
+}
+
+ZTEST(alert_manager, test_clear_log)
+{
+	header(TOR_LONG);
+	zassert_equal(alert_log_flush(), 1);
+	header(TOA_TRAVIS);
+	zassert_equal(alert_log_count(), 2, "one stored, one queued");
+	alert_log_clear();
+	zassert_equal(alert_log_count(), 0);
+	alert_log_init();
+	zassert_equal(alert_log_count(), 0, "cleared in storage too");
+}

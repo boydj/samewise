@@ -19,6 +19,8 @@ void ui_model_refresh(struct ui_model *ui)
 		ui->screen = UI_SCREEN_ALERTS_OFF;
 	} else if (ui->alert) {
 		ui->screen = UI_SCREEN_ALERT;
+	} else if (ui->ble_screen != 0U) {
+		ui->screen = UI_SCREEN_BLUETOOTH;
 	} else if (ui->restarted) {
 		ui->screen = UI_SCREEN_RESTARTED;
 	} else if (ui->warnings & (UI_WARN_NO_SIGNAL | UI_WARN_NO_WEEKLY_TEST | UI_WARN_TUNER_FAULT |

@@ -121,3 +121,60 @@ ZTEST(settings, test_default_event_table_round_trips)
 	zassert_equal(settings_load(&s2), 0);
 	zassert_mem_equal(&s2.events, &t, sizeof(t));
 }
+
+ZTEST(settings, test_presets_and_time_zone_round_trip)
+{
+	struct codec_preset p[3] = {
+		{CODEC_BAND_FM, 90500}, {CODEC_BAND_AM, 590}, {CODEC_BAND_WB, 162475}};
+	bool dst;
+
+	zassert_str_equal(s.tz, SETTINGS_TZ_DEFAULT);
+	zassert_equal(settings_local_time(&s, 1783036800, &dst), 1783036800, "UTC by default");
+
+	zassert_ok(settings_set_presets(&s, p, 3));
+	zassert_ok(settings_set_tz(&s, "EST5EDT,M3.2.0,M11.1.0"));
+	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(s2.preset_count, 3);
+	zassert_equal(s2.presets[1].band, CODEC_BAND_AM);
+	zassert_equal(s2.presets[2].khz, 162475);
+	zassert_str_equal(s2.tz, "EST5EDT,M3.2.0,M11.1.0");
+	zassert_equal(settings_local_time(&s2, 1783036800, &dst), 1783036800 - 4 * 3600);
+	zassert_true(dst);
+}
+
+ZTEST(settings, test_invalid_presets_and_time_zone_rejected)
+{
+	struct codec_preset bad = {CODEC_BAND_WB, 162410};
+	struct codec_preset nine[9] = {0};
+
+	zassert_equal(settings_set_presets(&s, &bad, 1), -EINVAL);
+	zassert_equal(settings_set_presets(&s, nine, 9), -EINVAL);
+	zassert_equal(settings_set_tz(&s, "EST5EDT"), -EINVAL);
+	zassert_equal(settings_set_tz(&s, NULL), -EINVAL);
+	zassert_equal(s.preset_count, 0);
+	zassert_str_equal(s.tz, SETTINGS_TZ_DEFAULT);
+	zassert_equal(storage_fake_records(), 0);
+}
+
+ZTEST(settings, test_factory_reset_clears_every_record)
+{
+	struct same_location home[1] = {travis};
+	struct codec_preset p = {CODEC_BAND_FM, 90500};
+
+	zassert_ok(settings_set_counties(&s, SETTINGS_MODE_HOME, home, 1));
+	zassert_ok(settings_set_counties(&s, SETTINGS_MODE_TRAVEL, home, 1));
+	zassert_ok(settings_set_mode(&s, SETTINGS_MODE_TRAVEL));
+	zassert_ok(settings_set_channel(&s, 3));
+	zassert_ok(settings_set_filter(&s, FILTER_ALL, NULL));
+	zassert_ok(settings_set_event_table(&s, &s.events));
+	zassert_ok(settings_set_presets(&s, &p, 1));
+	zassert_ok(settings_set_tz(&s, "UTC0"));
+	zassert_equal(storage_fake_records(), 8, "one record each");
+
+	settings_factory_reset(&s);
+	zassert_equal(storage_fake_records(), 0);
+	zassert_equal(s.home.count, 0);
+	zassert_equal(s.mode, SETTINGS_MODE_HOME);
+	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(s2.preset_count, 0);
+}

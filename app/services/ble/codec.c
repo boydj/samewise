@@ -216,7 +216,7 @@ int codec_decode_time(const uint8_t *buf, size_t len, struct codec_time *out)
 
 /* ---- Presets ---- */
 
-static bool preset_valid(uint8_t band, uint32_t khz)
+bool codec_preset_valid(uint8_t band, uint32_t khz)
 {
 	switch (band) {
 	case CODEC_BAND_FM:
@@ -263,7 +263,7 @@ int codec_decode_presets(const uint8_t *buf, size_t len, struct codec_presets *o
 	for (uint8_t i = 0; i < tmp.count; i++) {
 		tmp.p[i].band = buf[2 + 5 * i];
 		tmp.p[i].khz = get32(&buf[3 + 5 * i]);
-		if (!preset_valid(tmp.p[i].band, tmp.p[i].khz)) {
+		if (!codec_preset_valid(tmp.p[i].band, tmp.p[i].khz)) {
 			return CODEC_ERR_VALUE;
 		}
 	}
