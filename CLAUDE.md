@@ -3,7 +3,7 @@
 Pocket AM/FM/NOAA weather radio with SAME alerts: Raytac MDBT50Q-1MV2 (nRF52840) plus a Skyworks Si4743 tuner, on Zephyr via the nRF Connect SDK.
 
 - Spec (source of truth): `docs/firmware-spec.md`. Living version: https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac
-- Current task: `docs/MILESTONE-1.md`
+- Current task: `docs/MILESTONE-2.md` (milestone 1 is done)
 
 ## Priorities
 
@@ -21,7 +21,7 @@ app/
   services/match/   event matcher, filter, duplicates (milestone 2)
   services/power/   power manager (milestone 2)
   services/ble/     Bluetooth settings service (milestone 3)
-  hal/              the nine interface headers
+  hal/              the ten interface headers
   drivers/          real drivers (milestone 5)
   fakes/            native_sim fakes
   boards/           board overlays
