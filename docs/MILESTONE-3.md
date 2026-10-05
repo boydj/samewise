@@ -57,7 +57,7 @@ Bluetooth on nrf52_bsim:
 
 Mock peripheral:
 
-- [ ] Builds in CI on a macOS runner and serves every characteristic in `docs/gatt.json`
+- [x] Builds in CI on a macOS runner and serves every characteristic in `docs/gatt.json`
 
 ## Out of scope
 
