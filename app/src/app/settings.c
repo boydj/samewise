@@ -216,7 +216,7 @@ static bool get_tz(struct settings *s, int len)
 	return true;
 }
 
-int settings_load(struct settings *s)
+int settings_restore(struct settings *s)
 {
 	int bad = 0;
 	int len;

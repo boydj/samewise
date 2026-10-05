@@ -18,7 +18,7 @@ static void before(void *f)
 {
 	ARG_UNUSED(f);
 	storage_fake_init();
-	zassert_equal(settings_load(&s), 0);
+	zassert_equal(settings_restore(&s), 0);
 }
 
 ZTEST_SUITE(settings, NULL, NULL, before, NULL, NULL);
@@ -51,7 +51,7 @@ ZTEST(settings, test_round_trip_through_storage)
 	zassert_ok(settings_set_event_table(&s, &t));
 
 	/* A fresh load (as after a reboot) sees everything. */
-	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(settings_restore(&s2), 0);
 	zassert_equal(s2.home.count, 2);
 	zassert_mem_equal(&s2.home.codes[1], &bexar_nw, sizeof(bexar_nw));
 	zassert_equal(s2.travel.count, 1);
@@ -96,7 +96,7 @@ ZTEST(settings, test_unreadable_record_falls_back_to_default)
 	zassert_ok(hal_storage_write("mode", wrong_schema, sizeof(wrong_schema)));
 	zassert_ok(hal_storage_write("channel", bad_channel, sizeof(bad_channel)));
 	zassert_ok(hal_storage_write("events", "\x01\x00", 2));
-	zassert_equal(settings_load(&s), 3, "three bad records reported");
+	zassert_equal(settings_restore(&s), 3, "three bad records reported");
 	zassert_equal(s.mode, SETTINGS_MODE_HOME);
 	zassert_equal(s.channel, SETTINGS_CHANNEL_AUTO);
 }
@@ -107,7 +107,7 @@ ZTEST(settings, test_storage_failure_is_reported)
 	zassert_equal(settings_set_channel(&s, 3), -EIO);
 	zassert_equal(s.channel, 3, "still applied in RAM");
 	storage_fake_fail_writes(false);
-	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(settings_restore(&s2), 0);
 	zassert_equal(s2.channel, SETTINGS_CHANNEL_AUTO, "not persisted");
 }
 
@@ -118,7 +118,7 @@ ZTEST(settings, test_default_event_table_round_trips)
 	zassert_equal(s.events.count, 58, "built-in default loaded");
 	event_table_load_default(&t);
 	zassert_ok(settings_set_event_table(&s, &t), "the full table fits a storage record");
-	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(settings_restore(&s2), 0);
 	zassert_mem_equal(&s2.events, &t, sizeof(t));
 }
 
@@ -133,7 +133,7 @@ ZTEST(settings, test_presets_and_time_zone_round_trip)
 
 	zassert_ok(settings_set_presets(&s, p, 3));
 	zassert_ok(settings_set_tz(&s, "EST5EDT,M3.2.0,M11.1.0"));
-	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(settings_restore(&s2), 0);
 	zassert_equal(s2.preset_count, 3);
 	zassert_equal(s2.presets[1].band, CODEC_BAND_AM);
 	zassert_equal(s2.presets[2].khz, 162475);
@@ -175,6 +175,6 @@ ZTEST(settings, test_factory_reset_clears_every_record)
 	zassert_equal(storage_fake_records(), 0);
 	zassert_equal(s.home.count, 0);
 	zassert_equal(s.mode, SETTINGS_MODE_HOME);
-	zassert_equal(settings_load(&s2), 0);
+	zassert_equal(settings_restore(&s2), 0);
 	zassert_equal(s2.preset_count, 0);
 }

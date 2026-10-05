@@ -1,9 +1,11 @@
 /*
  * Bluetooth settings service on Zephyr's Bluetooth host.
  *
- * Stack callbacks run in the host's threads and call straight into the
- * service; on native targets only one thread runs at a time. The board
- * build (milestone 5) serialises them with the input and timer work.
+ * Threads: stack callbacks (the host's threads) enter the service holding
+ * the radio's app lock (ble_zephyr_set_lock); the service's port operations
+ * are queued and run on the system work queue without it, so nothing waits
+ * on the host while holding the lock. The connection pointer and the
+ * indication slots, shared by both, are guarded by a spinlock.
  */
 
 #include <errno.h>
@@ -14,6 +16,8 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/settings/settings.h>
+#include <zephyr/spinlock.h>
+#include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
 
 #include "services/ble/ble_zephyr.h"
@@ -25,7 +29,22 @@ BUILD_ASSERT(CONFIG_BT_ATT_PREPARE_COUNT * 18 >= WX_GATT_MAX_COUNTIES,
 	     "CONFIG_BT_ATT_PREPARE_COUNT too small for a 16-county write at the minimum MTU");
 
 static struct ble *svc_b;
+static struct k_mutex *app_lock;
+
+/* Stack callbacks enter the service holding the radio's app lock. */
+#define LOCKED(stmt)                                                                               \
+	do {                                                                                       \
+		if (app_lock != NULL) {                                                            \
+			(void)k_mutex_lock(app_lock, K_FOREVER);                                   \
+		}                                                                                  \
+		stmt;                                                                              \
+		if (app_lock != NULL) {                                                            \
+			(void)k_mutex_unlock(app_lock);                                            \
+		}                                                                                  \
+	} while (0)
 static struct bt_conn *conn;
+/* conn and the indication slots: the host's thread and the ops queue share them. */
+static struct k_spinlock conn_lock;
 static bool pairable;
 
 /* ---- GATT database, built from gatt_table.h ---- */
@@ -94,7 +113,7 @@ static ssize_t on_read(struct bt_conn *c, const struct bt_gatt_attr *attr, void 
 	int err;
 
 	ARG_UNUSED(c);
-	err = ble_read(svc_b, chr, value, &n);
+	LOCKED(err = ble_read(svc_b, chr, value, &n));
 	if (err != 0) {
 		return BT_GATT_ERR(err);
 	}
@@ -115,7 +134,7 @@ static ssize_t on_write(struct bt_conn *c, const struct bt_gatt_attr *attr, cons
 	if (offset != 0U) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
-	err = ble_write(svc_b, chr, buf, len);
+	LOCKED(err = ble_write(svc_b, chr, buf, len));
 	return err != 0 ? BT_GATT_ERR(err) : (ssize_t)len;
 }
 
@@ -181,7 +200,7 @@ static void accept_bond(const struct bt_bond_info *info, void *user)
 	(void)bt_le_filter_accept_list_add(&info->addr);
 }
 
-static int port_adv_start(void *user, bool bonded_only)
+static int do_adv_start(void *user, bool bonded_only)
 {
 	struct bt_le_adv_param param = BT_LE_ADV_PARAM_INIT(
 		BT_LE_ADV_OPT_CONN | (bonded_only ? BT_LE_ADV_OPT_FILTER_CONN : 0),
@@ -196,16 +215,15 @@ static int port_adv_start(void *user, bool bonded_only)
 	return bt_le_adv_start(&param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 }
 
-static void port_adv_stop(void *user)
+static void do_adv_stop(void *user)
 {
 	ARG_UNUSED(user);
 	(void)bt_le_adv_stop();
 }
 
-static void port_set_pairable(void *user, bool on)
+static void do_set_pairable(void *user, bool on)
 {
 	ARG_UNUSED(user);
-	pairable = on;
 	bt_set_bondable(on);
 }
 
@@ -224,11 +242,24 @@ static uint8_t port_bond_count(void *user)
 	return count;
 }
 
-static void port_disconnect(void *user)
+/* The current connection with a reference held, or NULL. */
+static struct bt_conn *conn_get(void)
 {
+	k_spinlock_key_t key = k_spin_lock(&conn_lock);
+	struct bt_conn *c = conn != NULL ? bt_conn_ref(conn) : NULL;
+
+	k_spin_unlock(&conn_lock, key);
+	return c;
+}
+
+static void do_disconnect(void *user)
+{
+	struct bt_conn *c = conn_get();
+
 	ARG_UNUSED(user);
-	if (conn != NULL) {
-		(void)bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+	if (c != NULL) {
+		(void)bt_conn_disconnect(c, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+		bt_conn_unref(c);
 	}
 }
 
@@ -239,12 +270,15 @@ static void unpair_all(void)
 }
 
 /* Unpairing drops the link: let the phone receive the result first. */
-static void port_unpair_all(void *user)
+static void do_unpair_all(void *user)
 {
+	k_spinlock_key_t key = k_spin_lock(&conn_lock);
+	bool now = ind_in_flight == 0U;
+
 	ARG_UNUSED(user);
-	if (ind_in_flight > 0U) {
-		unpair_pending = true;
-	} else {
+	unpair_pending = !now;
+	k_spin_unlock(&conn_lock, key);
+	if (now) {
 		unpair_all();
 	}
 }
@@ -258,54 +292,194 @@ static void indicated(struct bt_conn *c, struct bt_gatt_indicate_params *p, uint
 
 static void indication_done(struct bt_gatt_indicate_params *p)
 {
+	k_spinlock_key_t key = k_spin_lock(&conn_lock);
+	bool unpair;
+
 	for (int i = 0; i < IND_SLOTS; i++) {
 		if (&ind[i].params == p) {
 			ind[i].used = false;
 			ind_in_flight--;
 		}
 	}
-	if (unpair_pending && ind_in_flight == 0U) {
+	unpair = unpair_pending && ind_in_flight == 0U;
+	k_spin_unlock(&conn_lock, key);
+	if (unpair) {
 		unpair_all();
 	}
 }
 
-static int port_notify(void *user, enum wx_gatt_chr chr, const uint8_t *data, size_t len)
+static int indicate(struct bt_conn *c, const struct bt_gatt_attr *attr, const uint8_t *data,
+		    size_t len)
+{
+	k_spinlock_key_t key;
+	int slot = -1;
+	int err;
+
+	if (!bt_gatt_is_subscribed(c, attr, BT_GATT_CCC_INDICATE) || len > sizeof(ind[0].data)) {
+		return -EINVAL;
+	}
+	key = k_spin_lock(&conn_lock);
+	for (int i = 0; i < IND_SLOTS && slot < 0; i++) {
+		slot = ind[i].used ? -1 : i;
+	}
+	if (slot >= 0) {
+		ind[slot].used = true;
+		ind_in_flight++;
+	}
+	k_spin_unlock(&conn_lock, key);
+	if (slot < 0) {
+		return -ENOMEM;
+	}
+	memcpy(ind[slot].data, data, len);
+	memset(&ind[slot].params, 0, sizeof(ind[slot].params));
+	ind[slot].params.attr = attr;
+	ind[slot].params.data = ind[slot].data;
+	ind[slot].params.len = (uint16_t)len;
+	ind[slot].params.func = indicated;
+	ind[slot].params.destroy = indication_done;
+	err = bt_gatt_indicate(c, &ind[slot].params);
+	if (err != 0) {
+		key = k_spin_lock(&conn_lock);
+		ind[slot].used = false;
+		ind_in_flight--;
+		k_spin_unlock(&conn_lock, key);
+	}
+	return err;
+}
+
+static int do_notify(void *user, enum wx_gatt_chr chr, const uint8_t *data, size_t len)
 {
 	const struct bt_gatt_attr *attr = value_attr[chr];
+	struct bt_conn *c = conn_get();
+	int err;
 
 	ARG_UNUSED(user);
-	if (conn == NULL) {
+	if (c == NULL) {
 		return -ENOTCONN;
 	}
 	if (props[chr] & WX_GATT_INDICATE) {
-		int slot = -1;
-		int err;
-
-		for (int i = 0; i < IND_SLOTS && slot < 0; i++) {
-			slot = ind[i].used ? -1 : i;
-		}
-		if (!bt_gatt_is_subscribed(conn, attr, BT_GATT_CCC_INDICATE) ||
-		    len > sizeof(ind[0].data) || slot < 0) {
-			return -EINVAL;
-		}
-		memcpy(ind[slot].data, data, len);
-		memset(&ind[slot].params, 0, sizeof(ind[slot].params));
-		ind[slot].params.attr = attr;
-		ind[slot].params.data = ind[slot].data;
-		ind[slot].params.len = (uint16_t)len;
-		ind[slot].params.func = indicated;
-		ind[slot].params.destroy = indication_done;
-		err = bt_gatt_indicate(conn, &ind[slot].params);
-		if (err == 0) {
-			ind[slot].used = true;
-			ind_in_flight++;
-		}
-		return err;
+		err = indicate(c, attr, data, len);
+	} else if (!bt_gatt_is_subscribed(c, attr, BT_GATT_CCC_NOTIFY)) {
+		err = -EINVAL;
+	} else {
+		err = bt_gatt_notify(c, attr, data, (uint16_t)len);
 	}
-	if (!bt_gatt_is_subscribed(conn, attr, BT_GATT_CCC_NOTIFY)) {
+	bt_conn_unref(c);
+	return err;
+}
+
+/*
+ * The service calls the port holding the app lock, and a stack callback may
+ * be waiting for that lock in the host's thread: a blocking Bluetooth call
+ * here could deadlock. So port operations are queued, in order, and run on
+ * the system work queue without the lock.
+ */
+enum op_kind {
+	OP_ADV_START,
+	OP_ADV_STOP,
+	OP_PAIRABLE,
+	OP_DISCONNECT,
+	OP_UNPAIR_ALL,
+	OP_NOTIFY,
+};
+
+struct op {
+	uint8_t kind;
+	uint8_t arg; /* bonded_only, pairable, or the characteristic */
+	uint16_t len;
+	uint8_t data[WX_GATT_MAX_ALERT_LOG];
+};
+
+K_MSGQ_DEFINE(ops, sizeof(struct op), 8, 4);
+static uint32_t ops_dropped;
+
+static void run_ops(struct k_work *work)
+{
+	struct op op;
+
+	ARG_UNUSED(work);
+	while (k_msgq_get(&ops, &op, K_NO_WAIT) == 0) {
+		switch (op.kind) {
+		case OP_ADV_START:
+			(void)do_adv_start(NULL, op.arg != 0U);
+			break;
+		case OP_ADV_STOP:
+			do_adv_stop(NULL);
+			break;
+		case OP_PAIRABLE:
+			do_set_pairable(NULL, op.arg != 0U);
+			break;
+		case OP_DISCONNECT:
+			do_disconnect(NULL);
+			break;
+		case OP_UNPAIR_ALL:
+			do_unpair_all(NULL);
+			break;
+		case OP_NOTIFY:
+			(void)do_notify(NULL, (enum wx_gatt_chr)op.arg, op.data, op.len);
+			break;
+		}
+	}
+}
+
+static K_WORK_DEFINE(ops_work, run_ops);
+
+static int queue_op(uint8_t kind, uint8_t arg, const uint8_t *data, size_t len)
+{
+	static struct op op; /* callers hold the app lock */
+
+	op.kind = kind;
+	op.arg = arg;
+	op.len = (uint16_t)len;
+	if (len > 0U) {
+		memcpy(op.data, data, len);
+	}
+	if (k_msgq_put(&ops, &op, K_NO_WAIT) != 0) {
+		ops_dropped++;
+		return -ENOMEM;
+	}
+	(void)k_work_submit(&ops_work);
+	return 0;
+}
+
+static int port_adv_start(void *user, bool bonded_only)
+{
+	ARG_UNUSED(user);
+	return queue_op(OP_ADV_START, bonded_only, NULL, 0);
+}
+
+static void port_adv_stop(void *user)
+{
+	ARG_UNUSED(user);
+	(void)queue_op(OP_ADV_STOP, 0, NULL, 0);
+}
+
+static void port_set_pairable(void *user, bool on)
+{
+	ARG_UNUSED(user);
+	pairable = on; /* pairing_accept() sees it at once */
+	(void)queue_op(OP_PAIRABLE, on, NULL, 0);
+}
+
+static void port_disconnect(void *user)
+{
+	ARG_UNUSED(user);
+	(void)queue_op(OP_DISCONNECT, 0, NULL, 0);
+}
+
+static void port_unpair_all(void *user)
+{
+	ARG_UNUSED(user);
+	(void)queue_op(OP_UNPAIR_ALL, 0, NULL, 0);
+}
+
+static int port_notify(void *user, enum wx_gatt_chr chr, const uint8_t *data, size_t len)
+{
+	ARG_UNUSED(user);
+	if (len > WX_GATT_MAX_ALERT_LOG) {
 		return -EINVAL;
 	}
-	return bt_gatt_notify(conn, attr, data, (uint16_t)len);
+	return queue_op(OP_NOTIFY, (uint8_t)chr, data, len);
 }
 
 const struct ble_port ble_zephyr_port = {
@@ -318,27 +492,46 @@ const struct ble_port ble_zephyr_port = {
 	.notify = port_notify,
 };
 
+void ble_zephyr_set_lock(struct k_mutex *lock)
+{
+	app_lock = lock;
+}
+
 /* ---- Stack events ---- */
 
 static void connected(struct bt_conn *c, uint8_t err)
 {
-	if (err != 0U || conn != NULL || svc_b == NULL) {
+	k_spinlock_key_t key;
+
+	if (err != 0U || svc_b == NULL) {
+		return;
+	}
+	key = k_spin_lock(&conn_lock);
+	if (conn != NULL) {
+		k_spin_unlock(&conn_lock, key);
 		return;
 	}
 	conn = bt_conn_ref(c);
-	ble_on_connected(svc_b);
+	k_spin_unlock(&conn_lock, key);
+	LOCKED(ble_on_connected(svc_b));
 }
 
 static void disconnected(struct bt_conn *c, uint8_t reason)
 {
+	k_spinlock_key_t key = k_spin_lock(&conn_lock);
+	bool unpair;
+
 	ARG_UNUSED(reason);
 	if (c != conn) {
+		k_spin_unlock(&conn_lock, key);
 		return;
 	}
-	bt_conn_unref(conn);
 	conn = NULL;
-	ble_on_disconnected(svc_b);
-	if (unpair_pending) {
+	unpair = unpair_pending;
+	k_spin_unlock(&conn_lock, key);
+	bt_conn_unref(c);
+	LOCKED(ble_on_disconnected(svc_b));
+	if (unpair) {
 		unpair_all(); /* the phone left before confirming the indication */
 	}
 }
@@ -346,7 +539,7 @@ static void disconnected(struct bt_conn *c, uint8_t reason)
 static void security_changed(struct bt_conn *c, bt_security_t level, enum bt_security_err err)
 {
 	if (c == conn) {
-		ble_on_security(svc_b, err == BT_SECURITY_ERR_SUCCESS && level >= BT_SECURITY_L4);
+		LOCKED(ble_on_security(svc_b, err == BT_SECURITY_ERR_SUCCESS && level >= BT_SECURITY_L4));
 	}
 }
 
@@ -367,7 +560,7 @@ static enum bt_security_err pairing_accept(struct bt_conn *c,
 static void passkey_display(struct bt_conn *c, unsigned int passkey)
 {
 	if (c == conn) {
-		ble_on_passkey(svc_b, passkey);
+		LOCKED(ble_on_passkey(svc_b, passkey));
 	}
 }
 
@@ -385,7 +578,7 @@ static const struct bt_conn_auth_cb auth_cb = {
 static void pairing_complete(struct bt_conn *c, bool bonded)
 {
 	if (c == conn) {
-		ble_on_pairing_done(svc_b, bonded);
+		LOCKED(ble_on_pairing_done(svc_b, bonded));
 	}
 }
 
@@ -393,7 +586,7 @@ static void pairing_failed(struct bt_conn *c, enum bt_security_err reason)
 {
 	ARG_UNUSED(reason);
 	if (c == conn) {
-		ble_on_pairing_done(svc_b, false);
+		LOCKED(ble_on_pairing_done(svc_b, false));
 	}
 }
 
@@ -410,18 +603,28 @@ int ble_zephyr_init(struct ble *b)
 	build_service();
 	err = bt_enable(NULL);
 	if (err != 0) {
+		printk("ble: bt_enable failed (%d)\n", err);
 		return err;
 	}
 	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		(void)settings_load();
+		err = settings_load();
+		if (err != 0) {
+			printk("ble: loading bonds failed (%d)\n", err);
+		}
 	}
 	err = bt_conn_auth_cb_register(&auth_cb);
 	if (err == 0) {
 		err = bt_conn_auth_info_cb_register(&auth_info_cb);
 	}
-	if (err == 0) {
-		err = bt_gatt_service_register(&svc);
+	if (err != 0) {
+		printk("ble: pairing callbacks failed (%d)\n", err);
+		return err;
+	}
+	err = bt_gatt_service_register(&svc);
+	if (err != 0) {
+		printk("ble: GATT service registration failed (%d)\n", err);
+		return err;
 	}
 	bt_set_bondable(false);
-	return err;
+	return 0;
 }

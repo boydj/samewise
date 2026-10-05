@@ -1,0 +1,29 @@
+/*
+ * Console on UART0 (XIAO pins D6 TX, D7 RX) instead of USB CDC ACM, so a
+ * USB-serial adapter and Renode both see it, without the USB stack.
+ */
+/ {
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		/* The RNG peripheral, not the CryptoCell (see the board .conf). */
+		zephyr,entropy = &rng;
+	};
+};
+
+&rng {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+/* The 2 MB QSPI flash is unused: settings live in internal flash. */
+&qspi {
+	status = "disabled";
+};
+
+&p25q16h {
+	status = "disabled";
+};

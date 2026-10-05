@@ -15,6 +15,9 @@ static void on_header(const struct same_header *h, void *user)
 {
 	struct radio *r = user;
 
+	if (r->trace != NULL && r->trace->header != NULL) {
+		r->trace->header(r->trace->user, h);
+	}
 	alert_mgr_on_header(&r->alerts, h);
 }
 
@@ -22,6 +25,9 @@ static void on_eom(void *user)
 {
 	struct radio *r = user;
 
+	if (r->trace != NULL && r->trace->eom != NULL) {
+		r->trace->eom(r->trace->user);
+	}
 	alert_mgr_on_eom(&r->alerts);
 }
 
@@ -51,8 +57,9 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 {
 	uint32_t khz;
 
-	r->settings_errors = (uint32_t)settings_load(&r->settings);
+	r->settings_errors = (uint32_t)settings_restore(&r->settings);
 	r->idle_samples = 0;
+	r->trace = NULL;
 	r->ble.app = NULL;
 	power_init();
 	ui_model_init(&r->ui);
@@ -70,6 +77,11 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 	(void)hal_tuner_set_band(HAL_TUNER_BAND_WB);
 	(void)hal_tuner_tune(khz != 0U ? khz : cfg->default_khz);
 	(void)hal_audio_in_start();
+}
+
+void radio_set_trace(struct radio *r, const struct radio_trace *trace)
+{
+	r->trace = trace;
 }
 
 void radio_ble_start(struct radio *r, const struct ble_port *port, void *port_user)

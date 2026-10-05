@@ -74,7 +74,7 @@ static void before(void *f)
 	alert_log_init();
 	clock_sync_init(EPOCH);
 
-	zassert_equal(settings_load(&s), 0);
+	zassert_equal(settings_restore(&s), 0);
 	event_table_clear(&t, 1);
 	zassert_ok(event_table_add(&t, "TOR", "Tornado Warning", EVENT_CLASS_WARNING));
 	zassert_ok(event_table_add(&t, "SVR", "Severe Thunderstorm Warning", EVENT_CLASS_WARNING));

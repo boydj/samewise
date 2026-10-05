@@ -49,7 +49,7 @@ static void on_input(const struct hal_input_event *e, void *user)
 
 static void boot(void)
 {
-	(void)settings_load(&dev.settings);
+	(void)settings_restore(&dev.settings);
 	ui_model_init(&dev.ui);
 	alert_log_init();
 	clock_sync_init(0);

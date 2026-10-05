@@ -5,8 +5,9 @@
   mode, includes only the C standard library and its own headers, and never
   promotes float to double implicitly.
 - app/ and services/ include only hal/ interfaces for hardware: no driver
-  headers, Zephyr device APIs or fakes.
-- In services/ble, only ble_zephyr.c (the binding to Zephyr's Bluetooth
+  headers, Zephyr device APIs or fakes. app/src/main.c, the composition
+  root, may include drivers/ and fakes/ headers to wire them in.
+- In services/ble, only ble_zephyr.c and .h (the binding to Zephyr's Bluetooth
   host) includes Zephyr headers, so the service logic runs on native_sim.
 """
 
@@ -22,6 +23,7 @@ APP = ROOT / "app"
 SAME = APP / "services" / "same"
 MATCH = APP / "services" / "match"
 BLE = APP / "services" / "ble"
+COMPOSITION_ROOT = APP / "src" / "main.c"
 PLAIN_C99 = (SAME, MATCH)
 # services/ble: everything except the GATT service, which uses Zephyr's Bluetooth host.
 BLE_PLAIN = ("gatt_table.h", "codec.h", "codec.c", "tz.h", "tz.c")
@@ -71,15 +73,22 @@ class AppUsesOnlyHal(unittest.TestCase):
 
     def test_no_driver_or_fake_includes(self):
         for src in sources(APP / "src", APP / "services"):
+            if src == COMPOSITION_ROOT:
+                continue
             for inc in includes(src):
                 self.assertIsNone(self.FORBIDDEN.match(inc), f"{src.relative_to(ROOT)} includes {inc}")
 
     def test_only_the_binding_includes_zephyr_in_ble(self):
         for src in sources(BLE):
-            if src.name == "ble_zephyr.c":
+            if src.name in ("ble_zephyr.c", "ble_zephyr.h"):
                 continue
             for inc in includes(src):
                 self.assertFalse(inc.startswith("zephyr/"), f"{src.relative_to(ROOT)} includes {inc}")
+
+    def test_composition_root_still_avoids_device_apis(self):
+        for inc in includes(COMPOSITION_ROOT):
+            self.assertIsNone(re.match(r"^(zephyr/drivers/|zephyr/device\.h$|zephyr/devicetree)", inc),
+                              f"main.c includes {inc}: device access belongs in drivers/")
 
     def test_hal_headers_are_standalone(self):
         hal = sorted((APP / "hal").glob("*.h"))

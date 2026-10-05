@@ -55,15 +55,17 @@ config WX_APP_LOGIC
 	select WX_MATCH
 	select WX_BLE_SERVICE
 
-menu "native_sim fakes"
-	depends on ARCH_POSIX
+menu "Fakes"
+	comment "Stand-ins for interfaces; those reading host files need native_sim."
 
 config WX_FAKE_AUDIO_IN
 	bool "audio_in fake: WAV file reader"
+	depends on ARCH_POSIX
 	select WX_FAKE_HOST_FILE
 
 config WX_FAKE_CLOCK
 	bool "clock fake: simulated time"
+	depends on !WX_DRV_CLOCK
 
 config WX_FAKE_WATCHDOG
 	bool "watchdog fake: starvation triggers a simulated reset"
@@ -90,9 +92,53 @@ config WX_FAKE_BATTERY
 
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
+	depends on ARCH_POSIX
 	help
 	  Small shim over the host C library (open, read, write, close),
 	  built into the native simulator runner.
+
+endmenu
+
+menu "Drivers"
+	comment "Interfaces on real Zephyr subsystems (app/drivers)."
+
+config WX_DRV_CLOCK
+	bool "clock on the kernel's uptime, with timers on a supervisor work queue"
+	help
+	  hal/clock.h on the system timer (the nRF RTC on the board). Timer
+	  callbacks run on one work queue thread, the radio's supervisor.
+
+config WX_DRV_CLOCK_STACK_SIZE
+	int "Supervisor work queue stack size"
+	depends on WX_DRV_CLOCK
+	default 2048
+
+config WX_DRV_CLOCK_PRIORITY
+	int "Supervisor work queue priority"
+	depends on WX_DRV_CLOCK
+	default 5
+
+config WX_DRV_WATCHDOG
+	bool "watchdog on the SoC watchdog, reset cause from hwinfo"
+	depends on WATCHDOG && HWINFO
+
+config WX_DRV_STORAGE
+	bool "storage on Zephyr settings"
+	depends on SETTINGS
+
+config WX_AUDIO_CLIP
+	bool "audio_in from a SAME clip compiled into flash"
+	help
+	  Streams a samegen clip (one header, three copies, then EOM) generated
+	  at build time. The board's stand-in audio source until the ADC driver.
+
+config WX_AUDIO_CLIP_BITS
+	int "Bits per stored clip sample"
+	depends on WX_AUDIO_CLIP
+	range 8 16
+	default 16
+	help
+	  16 keeps samegen's samples exactly; 8 halves the flash used.
 
 endmenu
 

@@ -1,0 +1,21 @@
+:name: Pocket WX Radio on the XIAO nRF52840
+:description: Loads the XIAO image on Renode's nRF52840 platform.
+
+# Set by tests/renode/run.sh: the image, the platform (Renode's nRF52840 with
+# Nordic's local SVD) and where the console goes.
+$elf ?= @build-xiao/app/zephyr/zephyr.elf
+$platform ?= @platforms/cpus/nrf52840.repl
+$uartlog ?= @uart.log
+
+using sysbus
+mach create "xiao"
+machine LoadPlatformDescription $platform
+
+# FICR part code and revision, which the SoftDevice's errata checks read:
+# an nRF52840 (0x08), revision 3. Renode leaves FICR unmapped (zeros).
+sysbus Tag <0x10000130 4> "FICR_PART_CODE" 0x8
+sysbus Tag <0x10000134 4> "FICR_REVISION" 0x3
+
+sysbus LoadELF $elf
+cpu VectorTableOffset `sysbus GetSymbolAddress "_vector_table"`
+uart0 CreateFileBackend $uartlog true

@@ -381,7 +381,7 @@ ZTEST(ble_service, test_sixteen_counties_write_and_read_back)
 
 	struct settings loaded;
 
-	zassert_equal(settings_load(&loaded), 0);
+	zassert_equal(settings_restore(&loaded), 0);
 	zassert_equal(loaded.home.count, 16, "persisted");
 }
 

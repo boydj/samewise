@@ -68,7 +68,7 @@ struct settings {
  * @return number of records that were present but unreadable (wrong schema
  *         or size) and were replaced by defaults; 0 when all is well.
  */
-int settings_load(struct settings *s);
+int settings_restore(struct settings *s);
 
 /**
  * Defaults: no counties, home mode, auto channel, warnings and watches,
