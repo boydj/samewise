@@ -59,14 +59,14 @@ One custom service carries all settings and status, and every custom characteris
 | Travel counties | Read, write | Same format; written by the app from the phone's location; used only in travel mode |
 | Mode | Read, write | Home or travel; weather channel auto-scan or fixed channel 1–7 |
 | Event filter | Read, write | Preset (warnings only, warnings and watches, all) or a custom bitmap over the event table |
-| Event table | Read, write | Versioned list of event code, display name and class (warning, watch, advisory, test, statement) |
-| Time | Write | UTC seconds plus a POSIX time-zone string such as `EST5EDT,M3.2.0,M11.1.0` |
+| Event table | Read, write | Versioned list of event code, display name and class (warning, watch, advisory, test, statement), one entry per read; writes select an entry or replace the table (begin, entries, commit) |
+| Time | Write | UTC seconds plus a POSIX time-zone string such as `EST5EDT,M3.2.0,M11.1.0` (up to 48 characters; a daylight-saving name without transition rules is rejected) |
 | Presets | Read, write | Up to 8 stations: band and frequency |
 | Status | Read, notify | Battery percent, estimated hours left, signal quality, channel, last weekly test (UTC), health flags, lock state |
-| Alert log | Read, notify | Last 16 alerts: raw SAME header and received time |
+| Alert log | Read, write, notify | Last 16 alerts: raw SAME header, received time, outcome and flags, one entry per read; a write selects the entry |
 | Control | Write, indicate | Test alert, clear log, factory reset (confirmed on the radio) |
 
-Every value starts with a 1-byte schema version; fixed fields are little-endian, lists are length-prefixed. Lists longer than the default packet size rely on the larger packet size iOS negotiates, with long writes as the fallback.
+Every value starts with a 1-byte schema version; fixed fields are little-endian, lists are length-prefixed. Lists longer than the default packet size rely on the larger packet size iOS negotiates, with long writes as the fallback. The event table and alert log exceed the 512-byte attribute limit, so they are read one entry at a time. `services/ble/gatt_table.h` defines the UUIDs and maximum lengths, and `docs/gatt.json` is generated from it.
 
 Connection rules:
 
