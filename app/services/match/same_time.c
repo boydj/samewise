@@ -81,6 +81,13 @@ int64_t same_issue_utc_after(const struct same_header *h, int64_t floor_utc)
 	return -1;
 }
 
+bool same_issue_in_future(const struct same_header *h, int64_t now_utc)
+{
+	int64_t issue = same_issue_utc(h, now_utc);
+
+	return issue >= 0 && issue - now_utc > SAME_FUTURE_TOLERANCE_S;
+}
+
 int64_t same_purge_s(const struct same_header *h)
 {
 	return (int64_t)h->purge_hours * 3600 + (int64_t)h->purge_minutes * 60;
@@ -90,7 +97,8 @@ int64_t same_expiry_ms(const struct same_header *h, int64_t now_utc, int64_t now
 {
 	int64_t issue = same_issue_utc(h, now_utc);
 
-	if (issue < 0) {
+	/* Clock unset, or an issue time too far ahead to trust: from receipt. */
+	if (issue < 0 || issue - now_utc > SAME_FUTURE_TOLERANCE_S) {
 		return now_ms + same_purge_s(h) * 1000;
 	}
 	return now_ms + (issue + same_purge_s(h) - now_utc) * 1000;

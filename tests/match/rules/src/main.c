@@ -188,6 +188,36 @@ ZTEST(match_rules, test_expiry)
 	zassert_true(same_expiry_ms(&h, utc(2026, 10, 5, 21, 0), 1000) <= 1000, "stale on arrival");
 }
 
+/* ---- Future issue times (milestone 3 task 0) ---- */
+
+ZTEST(match_rules, test_day_366_received_in_2027_expires_at_receive_plus_purge)
+{
+	/* 2026 isn't a leap year, so day 366 only exists in 2028. */
+	int64_t now = utc(2027, 3, 1, 12, 0);
+
+	hdr("ZCZC-WXR-TOR-048453+0030-3661200-KEWX/NWS-");
+	zassert_true(same_issue_in_future(&h, now), "the inferred 2028 issue time is distrusted");
+	zassert_equal(same_expiry_ms(&h, now, 1000), 1000 + 30 * 60 * 1000,
+		      "receive time + purge, not December 2028");
+}
+
+ZTEST(match_rules, test_issue_15_minutes_ahead_distrusted_5_minutes_accepted)
+{
+	int64_t now = utc(2026, 10, 5, 19, 0);
+
+	hdr("ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS-"); /* 15 minutes ahead */
+	zassert_true(same_issue_in_future(&h, now));
+	zassert_equal(same_expiry_ms(&h, now, 1000), 1000 + 30 * 60 * 1000, "receive + purge");
+
+	hdr("ZCZC-WXR-TOR-048453+0030-2781905-KEWX/NWS-"); /* 5 minutes ahead */
+	zassert_false(same_issue_in_future(&h, now));
+	zassert_equal(same_expiry_ms(&h, now, 1000), 1000 + 35 * 60 * 1000, "issue + purge");
+
+	hdr("ZCZC-WXR-TOR-048453+0030-2781910-KEWX/NWS-"); /* exactly 10: still trusted */
+	zassert_false(same_issue_in_future(&h, now));
+	zassert_false(same_issue_in_future(&h, -1), "nothing to distrust with the clock unset");
+}
+
 /* ---- Duplicates ---- */
 
 static struct dup_store d;

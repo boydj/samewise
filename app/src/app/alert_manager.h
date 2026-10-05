@@ -65,6 +65,7 @@ struct alert_mgr_stats {
 	uint32_t filtered;
 	uint32_t unknown;
 	uint32_t expired;
+	uint32_t future_issue; /* issue time distrusted: expiry from receipt */
 	uint32_t rwt;
 	uint32_t displaced; /* active alerts pushed out when the list was full */
 };

@@ -506,3 +506,64 @@ ZTEST(alert_manager, test_unset_clock_year_floor_moves_forward)
 	header("ZCZC-WXR-RWT-048000+0015-3001200-KEWX/NWS-");
 	zassert_equal(hal_clock_utc_s(), utc(2027, 10, 27, 12, 0));
 }
+
+/* ---- Milestone 3 task 0 ---- */
+
+ZTEST(alert_manager, test_day_366_in_2027_expires_at_receive_plus_purge)
+{
+	struct alert_log_entry e;
+
+	zassert_ok(hal_clock_set_utc(utc(2027, 3, 1, 12, 0)));
+	header("ZCZC-WXR-TOR-048453+0030-3661200-KEWX/NWS-");
+	zassert_equal(state(), ALERT_STATE_ALERTING, "still alerts");
+	zassert_equal(m.stats.future_issue, 1, "distrusted issue time counted");
+	clock_fake_advance_ms(30 * MINUTE);
+	zassert_equal(state(), ALERT_STATE_STANDBY, "expires 30 minutes after receipt, not in 2028");
+	zassert_equal(alert_log_flush(), 1);
+	zassert_ok(alert_log_read(0, &e));
+	zassert_equal(e.outcome, ALERT_LOG_ALERTED);
+	zassert_true(e.flags & ALERT_LOG_FLAG_FUTURE_ISSUE, "logged as a distrusted issue time");
+}
+
+ZTEST(alert_manager, test_future_issue_15_minutes_distrusted_5_accepted)
+{
+	zassert_ok(hal_clock_set_utc(utc(2026, 10, 5, 19, 0)));
+	header("ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS-");
+	zassert_equal(m.stats.future_issue, 1);
+	zassert_equal(ui.expires_ms, hal_clock_uptime_ms() + 30 * MINUTE, "receive + purge");
+	key(HAL_INPUT_KEY_STBY);
+
+	header("ZCZC-WXR-SVR-048453+0030-2781905-KEWX/NWS-");
+	zassert_equal(m.stats.future_issue, 1, "5 minutes ahead is trusted");
+	zassert_equal(ui.expires_ms, hal_clock_uptime_ms() + 35 * MINUTE, "issue + purge");
+}
+
+ZTEST(alert_manager, test_other_counties_cannot_evict_a_matched_alert)
+{
+	char text[64];
+
+	header(TOR_LONG);
+	zassert_equal(m.stats.alerted, 1);
+	key(HAL_INPUT_KEY_STBY);
+	for (int i = 1; i <= 40; i++) {
+		snprintf(text, sizeof(text), "ZCZC-WXR-SVR-0400%02d+0100-2781930-KOUN/NWS-", i);
+		header(text);
+	}
+	zassert_equal(m.stats.not_matched, 40);
+	header(TOR_LONG);
+	zassert_equal(m.stats.duplicates, 1, "the re-broadcast is still suppressed");
+	zassert_equal(m.stats.alerted, 1);
+	zassert_equal(state(), ALERT_STATE_SILENCED, "no second alarm");
+	zassert_equal(m.dups.evictions, 0);
+}
+
+ZTEST(alert_manager, test_weekly_test_duplicates_still_suppressed)
+{
+	static const char rwt_elsewhere[] = "ZCZC-WXR-RWT-040000+0015-2791700-KOUN/NWS-";
+
+	header(rwt_elsewhere);
+	header(rwt_elsewhere);
+	zassert_equal(rwt_hook_calls, 1, "one weekly test, not two");
+	zassert_equal(m.stats.duplicates, 1);
+	zassert_equal(m.stats.rwt, 1);
+}

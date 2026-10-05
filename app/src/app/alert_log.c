@@ -36,7 +36,7 @@ void alert_log_init(void)
 }
 
 void alert_log_append(const struct same_header *h, int64_t received_utc,
-		      enum alert_log_outcome outcome)
+		      enum alert_log_outcome outcome, uint8_t flags)
 {
 	struct alert_log_entry *e;
 
@@ -49,6 +49,7 @@ void alert_log_append(const struct same_header *h, int64_t received_utc,
 	memcpy(e->raw, h->raw, sizeof(e->raw));
 	e->received_utc = received_utc;
 	e->outcome = (uint8_t)outcome;
+	e->flags = flags;
 	s.q_len++;
 	s.appended++;
 }

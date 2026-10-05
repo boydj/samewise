@@ -30,10 +30,14 @@ enum alert_log_outcome {
 	ALERT_LOG_EXPIRED,  /* issue + purge already past on arrival */
 };
 
+/** Entry flags. */
+#define ALERT_LOG_FLAG_FUTURE_ISSUE 0x01U /* issue time distrusted; expiry from receipt */
+
 struct alert_log_entry {
 	char raw[SAME_HEADER_MAX_LEN + 1];
 	int64_t received_utc; /* -1 if the clock was unset */
 	uint8_t outcome;      /* enum alert_log_outcome */
+	uint8_t flags;        /* ALERT_LOG_FLAG_* */
 };
 
 /** Read the log's position from storage (it survives resets). */
@@ -41,7 +45,7 @@ void alert_log_init(void);
 
 /** Queue an entry; never blocks. Drops the oldest queued entry if full. */
 void alert_log_append(const struct same_header *h, int64_t received_utc,
-		      enum alert_log_outcome outcome);
+		      enum alert_log_outcome outcome, uint8_t flags);
 
 /** Write queued entries to storage. Returns the number written. */
 int alert_log_flush(void);

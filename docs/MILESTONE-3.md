@@ -28,10 +28,10 @@ Done when every test below passes in CI, `docs/gatt.json` is generated from the 
 
 Milestone 2 fixes:
 
-- [ ] A day 366 header received in 2027 expires at receive time plus purge time, not in 2028
-- [ ] An issue time 15 minutes in the future is distrusted; 5 minutes in the future is accepted
-- [ ] 40 non-matching headers don't evict a matched alert; its re-broadcast stays suppressed
-- [ ] Weekly-test duplicates are still suppressed
+- [x] A day 366 header received in 2027 expires at receive time plus purge time, not in 2028
+- [x] An issue time 15 minutes in the future is distrusted; 5 minutes in the future is accepted
+- [x] 40 non-matching headers don't evict a matched alert; its re-broadcast stays suppressed
+- [x] Weekly-test duplicates are still suppressed
 
 Codec and time zones (host):
 

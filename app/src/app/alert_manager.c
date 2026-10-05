@@ -254,10 +254,12 @@ void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h)
 	const struct county_list *counties = settings_active_counties(s);
 	const struct event_entry *e = event_table_find(&s->events, h->event);
 	bool is_test = e != NULL && e->cls == EVENT_CLASS_TEST;
+	bool is_rwt = memcmp(h->event, "RWT", 3) == 0;
 	int64_t now_ms = hal_clock_uptime_ms();
 	enum filter_verdict verdict;
 	uint32_t matched;
 	int64_t expires;
+	uint8_t flags = 0;
 
 	m->stats.headers++;
 	if (m->state == ALERT_STATE_LISTENING) {
@@ -268,7 +270,7 @@ void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h)
 		m->stats.duplicates++;
 		return;
 	}
-	if (memcmp(h->event, "RWT", 3) == 0) {
+	if (is_rwt) {
 		m->stats.rwt++;
 		(void)clock_sync_on_rwt(h);
 		if (m->on_rwt != NULL) {
@@ -276,34 +278,42 @@ void alert_mgr_on_header(struct alert_mgr *m, const struct same_header *h)
 		}
 	}
 
-	expires = same_expiry_ms(h, hal_clock_utc_s(), now_ms);
-	dup_add(&m->dups, h, expires, now_ms);
-
 	matched = match_header(h, counties->codes, counties->count);
 	if (matched == 0U && !is_test) {
+		/* Other counties' traffic never enters the duplicate store: on a busy
+		 * day it would evict our own alerts. */
 		m->stats.not_matched++;
 		return;
 	}
+
+	if (same_issue_in_future(h, hal_clock_utc_s())) {
+		m->stats.future_issue++;
+		flags |= ALERT_LOG_FLAG_FUTURE_ISSUE;
+	}
+	expires = same_expiry_ms(h, hal_clock_utc_s(), now_ms);
+	if (matched != 0U || is_rwt) {
+		dup_add(&m->dups, h, expires, now_ms);
+	}
 	if (expires <= now_ms) {
 		m->stats.expired++;
-		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_EXPIRED);
+		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_EXPIRED, flags);
 		return;
 	}
 
 	verdict = filter_decide(&s->events, h->event, (enum filter_preset)s->filter, s->custom);
 	if (verdict == FILTER_VERDICT_UNKNOWN) {
 		m->stats.unknown++;
-		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_UNKNOWN);
+		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_UNKNOWN, flags);
 		return;
 	}
 	if (verdict == FILTER_VERDICT_LOG) {
 		m->stats.filtered++;
-		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_FILTERED);
+		alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_FILTERED, flags);
 		return;
 	}
 
 	m->stats.alerted++;
-	alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_ALERTED);
+	alert_log_append(h, hal_clock_utc_s(), ALERT_LOG_ALERTED, flags);
 	add_active(m, h, e->cls, matched, expires);
 	enter(m, m->headphones ? ALERT_STATE_ALERT_AUDIO : ALERT_STATE_ALERTING);
 }

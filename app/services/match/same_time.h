@@ -6,12 +6,15 @@
  * header received on January 1 belongs to the previous year. Expiry is
  * expressed in uptime milliseconds so timers and duplicate entries share one
  * time base: issue time plus purge time when UTC is known, otherwise
- * receive time plus purge time.
+ * receive time plus purge time. An inferred issue time more than
+ * SAME_FUTURE_TOLERANCE_S ahead of the clock is not trusted either (a
+ * corrupted day 366 maps up to a year ahead), so it expires from receipt.
  */
 
 #ifndef SERVICES_MATCH_SAME_TIME_H_
 #define SERVICES_MATCH_SAME_TIME_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "services/same/same_header.h"
@@ -36,6 +39,16 @@ int64_t same_issue_utc(const struct same_header *h, int64_t now_utc);
  * floor_utc. Time only moves forward while the radio is off.
  */
 int64_t same_issue_utc_after(const struct same_header *h, int64_t floor_utc);
+
+/**
+ * True when the issue time inferred from now_utc is more than
+ * SAME_FUTURE_TOLERANCE_S ahead of now: not trusted (a corrupted day 366,
+ * say). False while the clock is unset.
+ */
+bool same_issue_in_future(const struct same_header *h, int64_t now_utc);
+
+/** How far ahead of the clock an issue time may be and still be trusted. */
+#define SAME_FUTURE_TOLERANCE_S 600
 
 /** Purge period +TTTT in seconds. */
 int64_t same_purge_s(const struct same_header *h);
