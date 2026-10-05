@@ -25,14 +25,14 @@ Four layers, top to bottom:
 
 - **Application:** alert manager (alert states, buzzer, vibration, screens), radio UI (tuning, presets, key lock, display), health supervisor (watchdog, signal, weekly test, battery), settings (counties, filters, time zone, presets).
 - **Services:** SAME decoder (tones, bit sync, header voting), event matcher (counties, filters, duplicates), power manager (modes, clocks, amp and backlight), Bluetooth service (settings, status, pairing, updates).
-- **Hardware interfaces:** tuner, audio_in, audio_out, alert_out, display, input, battery, clock, storage.
+- **Hardware interfaces:** tuner, audio_in, audio_out, alert_out, display, input, battery, clock, storage, watchdog.
 - **Drivers, chosen at build time:** board drivers for the nRF52840 (Si4743, SAADC, Sharp LCD over SPI, PAM8904E, MAX17048, BQ25180, GPIO) or `native_sim` fakes (WAV-file tuner audio, SDL display, scripted battery and signal, fast clock).
 
 Application and service code never touches hardware directly; the interface layer is the seam where real drivers or laptop fakes plug in.
 
 ## Hardware interfaces
 
-Nine interfaces separate the application from the hardware; each has a real driver for the board and a fake for `native_sim`. Application code includes only the interface headers, and the board or simulator is chosen at build time.
+Ten interfaces separate the application from the hardware; each has a real driver for the board and a fake for `native_sim`. Application code includes only the interface headers, and the board or simulator is chosen at build time.
 
 | Interface | Responsibilities | Real driver | Fake for native_sim |
 | --- | --- | --- | --- |
@@ -45,6 +45,7 @@ Nine interfaces separate the application from the hardware; each has a real driv
 | `battery` | State of charge, voltage, charge status, temperature fault | MAX17048 and BQ25180 over I2C | Scripted discharge and charge curves |
 | `clock` | UTC time, set and adjust, timers | nRF52 RTC on the 32.768 kHz crystal | Simulated time that can run faster than real time |
 | `storage` | Settings and alert log as key-value records | Zephyr settings on flash | Settings in a local file |
+| `watchdog` | Start, feed, reset reason | nRF52 hardware watchdog | Records feeds; a starved watchdog triggers a simulated reset that restarts the application |
 
 Audio is sampled at 10,416.67 Hz (16 MHz ÷ 1,536), exactly 20 samples per SAME bit at 520.83 baud, which keeps bit timing integer. Bluetooth is not behind an interface: Zephyr's Bluetooth host runs unchanged on the `nrf52_bsim` simulator.
 
@@ -109,7 +110,8 @@ Alert behaviour:
 - Plugging in headphones during an alert stops the buzzer and plays the broadcast; end of message (NNNN) ends the audio.
 - The key lock blocks every button except the silence press during an alert.
 - While you listen to AM or FM the single tuner can't monitor weather: the screen shows alerts paused, and the radio returns to standby after 60 minutes without input.
-- Each issue time also corrects the clock to the minute between phone syncs.
+- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old.
+- Vibration uses distinct patterns for warnings and watches, so the class is felt without looking.
 
 ## Health monitoring
 
