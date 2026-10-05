@@ -131,3 +131,19 @@ jobs:
           name: bsim-log
           path: samewise/bsim.log
           if-no-files-found: ignore
+
+  mock-peripheral:
+    # The iPhone app's stand-in for the radio: builds against CoreBluetooth
+    # and checks the model against docs/gatt.json.
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: tools/mock-peripheral
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test

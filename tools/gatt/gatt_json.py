@@ -5,7 +5,8 @@
   gatt_json.py --check    exit 1 if docs/gatt.json is out of date
 
 Compiles tools/gatt/gen_gatt_json.c with the host C compiler, which
-includes the firmware header directly, so nothing parses C by hand.
+includes the firmware header directly (and links the default event table),
+so nothing parses C by hand.
 """
 
 import argparse
@@ -24,8 +25,11 @@ def generate() -> str:
     cc = os.environ.get("CC", "cc")
     with tempfile.TemporaryDirectory() as d:
         exe = Path(d) / "gen_gatt_json"
+        match = ROOT / "app" / "services" / "match"
         subprocess.run([cc, "-std=c99", "-Wall", "-Werror", "-I", str(ROOT / "app"),
-                        str(ROOT / "tools" / "gatt" / "gen_gatt_json.c"), "-o", str(exe)], check=True)
+                        str(ROOT / "tools" / "gatt" / "gen_gatt_json.c"),
+                        str(match / "event_table.c"), str(match / "event_table_default.c"),
+                        "-o", str(exe)], check=True)
         text = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout
     json.loads(text)  # must be valid JSON
     return text

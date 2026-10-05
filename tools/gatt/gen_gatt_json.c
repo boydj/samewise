@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "services/ble/gatt_table.h"
+#include "services/match/event_table.h"
 
 static void props(unsigned int p)
 {
@@ -30,6 +31,35 @@ static void props(unsigned int p)
 	printf("]");
 }
 
+/* Names are printable ASCII (the codec checks); escape what JSON needs. */
+static void json_string(const char *s)
+{
+	putchar('"');
+	for (; *s != '\0'; s++) {
+		if (*s == '"' || *s == '\\') {
+			putchar('\\');
+		}
+		putchar(*s);
+	}
+	putchar('"');
+}
+
+/* The firmware's built-in table, so the mock peripheral starts with the same one. */
+static void default_event_table(void)
+{
+	static struct event_table t;
+
+	event_table_load_default(&t);
+	printf("  \"default_event_table\": {\"version\": %u, \"entries\": [\n", t.version);
+	for (unsigned int i = 0; i < t.count; i++) {
+		printf("    {\"code\": \"%s\", \"class\": %u, \"name\": ", t.entries[i].code,
+		       t.entries[i].cls);
+		json_string(t.entries[i].name);
+		printf("}%s\n", i + 1 < t.count ? "," : "");
+	}
+	printf("  ]},\n");
+}
+
 int main(void)
 {
 	int first = 1;
@@ -47,7 +77,9 @@ int main(void)
 	first = 0;
 	WX_GATT_CHARACTERISTICS(WX_GATT_JSON)
 #undef WX_GATT_JSON
-	printf("\n  ],\n  \"errors\": [\n");
+	printf("\n  ],\n");
+	default_event_table();
+	printf("  \"errors\": [\n");
 	first = 1;
 #define WX_GATT_ERR_JSON(id, code, meaning)                                                       \
 	printf("%s    {\"name\": \"" #id "\", \"code\": %d, \"meaning\": \"%s\"}", first ? "" : ",\n", code, meaning); \

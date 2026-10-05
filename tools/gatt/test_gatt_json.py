@@ -30,6 +30,14 @@ class GattJson(unittest.TestCase):
         self.assertEqual(g["characteristics"][7]["properties"], ["read", "notify"], "status")
         self.assertEqual(g["characteristics"][5]["properties"], ["write"], "time is write-only")
 
+    def test_default_event_table_and_errors(self):
+        g = json.loads(gj.OUT.read_text())
+        codes = [e["code"] for e in g["default_event_table"]["entries"]]
+        self.assertEqual(len(codes), len(set(codes)), "codes are unique")
+        self.assertIn("TOR", codes)
+        self.assertTrue(all(0 <= e["class"] <= 4 for e in g["default_event_table"]["entries"]))
+        self.assertEqual({e["name"]: e["code"] for e in g["errors"]}["SCHEMA"], 0x80)
+
 
 if __name__ == "__main__":
     unittest.main()
