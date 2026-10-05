@@ -42,21 +42,25 @@ MARK_HZ = 4 * BAUD  # 2083.33 Hz, bit 1
 SPACE_HZ = 3 * BAUD  # 1562.5 Hz, bit 0
 PREAMBLE = b"\xab" * 16
 EOM_TEXT = "NNNN"
-ATTENTION_HZ = 1050.0
+ATTENTION_HZ = 1050.0  # NOAA Weather Radio warning alarm tone
+EAS_ATTENTION_HZ = (853.0, 960.0)  # EAS attention signal, sent together (11.31(a)(2))
 MAX_LOCATIONS = 31
 
-# Printable ASCII except '-' for the 8-character station ID.
+# 47 CFR 11.31: the only originators are EAS, CIV, WXR and PEP (d)(1), and '-'
+# and '+' may not be used for any other purpose (b), so the 8-character
+# station ID is printable ASCII other than those two.
 _HEADER_RE = re.compile(
-    r"^ZCZC-([A-Z]{3})-([A-Z]{3})-((?:\d{6}-){0,30}\d{6})\+(\d{4})-(\d{7})-"
-    r"([\x20-\x2c\x2e-\x7e]{8})-$"
+    r"^ZCZC-(EAS|CIV|WXR|PEP)-([A-Z]{3})-((?:\d{6}-){0,30}\d{6})\+(\d{4})-(\d{7})-"
+    r"([\x20-\x2a\x2c\x2e-\x7e]{8})-$"
 )
 
 
 def is_valid_header(text: str) -> bool:
     """Strict header validation, kept independent of the C parser as an oracle.
 
-    Fixed field lengths, digits where digits belong, 1 to 31 locations,
-    purge minutes 00-59, Julian day 001-366, hour 00-23, minute 00-59.
+    Fixed field lengths, digits where digits belong, an 11.31 originator,
+    1 to 31 locations, purge minutes 00-59, Julian day 001-366, hour 00-23,
+    minute 00-59, and no '-' or '+' in the station ID.
     """
     m = _HEADER_RE.match(text)
     if not m:
@@ -92,7 +96,7 @@ class Options:
     timing_offset_pct: float = 0.0  # baud rate error (+ = faster bits)
     drop: list = field(default_factory=list)  # [(msg or None, copy)]
     corrupt: list = field(default_factory=list)  # [(msg or None, copy, n_bytes)]
-    lead: str = "silence"  # silence | noise | tone1050 | path to a WAV
+    lead: str = "silence"  # silence | noise | tone1050 | eas_attention | path to a WAV
     lead_s: float = 1.0
     trail: str = "silence"
     trail_s: float = 1.0
@@ -116,6 +120,9 @@ def _fill(kind: str, seconds: float, opts: Options, rng: np.random.Generator) ->
         return rng.normal(0.0, opts.amplitude / math.sqrt(2), n)  # same power as the AFSK
     if kind == "tone1050":
         return opts.amplitude * np.sin(2 * np.pi * ATTENTION_HZ * np.arange(n) / opts.rate)
+    if kind == "eas_attention":
+        t = np.arange(n) / opts.rate
+        return opts.amplitude / 2 * sum(np.sin(2 * np.pi * f * t) for f in EAS_ATTENTION_HZ)
     # A WAV file, used whole and resampled to the output rate.
     src_rate, raw = wavfile.read(kind)
     data = raw.astype(np.float64)
@@ -275,9 +282,9 @@ def main(argv=None) -> int:
                    help="drop a copy (repeatable)")
     p.add_argument("--corrupt", type=_corrupt, action="append", default=[], metavar="[MSG/]COPY[:N]",
                    help="corrupt N random bytes of a copy (default 1; repeatable)")
-    p.add_argument("--lead", default="silence", help="silence, noise, tone1050 or a WAV path")
+    p.add_argument("--lead", default="silence", help="silence, noise, tone1050, eas_attention or a WAV path")
     p.add_argument("--lead-seconds", type=float, default=1.0)
-    p.add_argument("--trail", default="silence", help="silence, noise, tone1050 or a WAV path")
+    p.add_argument("--trail", default="silence", help="silence, noise, tone1050, eas_attention or a WAV path")
     p.add_argument("--trail-seconds", type=float, default=1.0)
     p.add_argument("--tone1050", type=float, default=0.0, metavar="SECONDS",
                    help="1050 Hz attention tone after each header")

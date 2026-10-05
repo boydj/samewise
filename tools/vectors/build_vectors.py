@@ -44,6 +44,8 @@ MALFORMED = [
     TOR.replace("2781915", "2782515"),     # hour 25
     TOR.replace("KEWX/NWS", "KEWX/NW"),    # 7-character station ID
     TOR.replace("WXR", "W1R"),             # digit in originator
+    TOR.replace("WXR", "XYZ"),             # not an 11.31(d)(1) originator
+    TOR.replace("KEWX/NWS", "KEWX+NWS"),   # '+' in station ID (11.31(b))
     "ZCZC-WXR-TOR-" + "-".join(["048453"] * 32) + "+0030-2781915-KEWX/NWS-",  # 32 locations
 ]
 
@@ -86,6 +88,7 @@ def _negative_group():
         "noise_10min": ([], O(lead="noise", lead_s=ten_min, trail_s=0, seed=11)),
         "silence_10min": ([], O(lead="silence", lead_s=ten_min, trail_s=0)),
         "tone1050_10min": ([], O(lead="tone1050", lead_s=ten_min, trail_s=0)),
+        "eas_attention_10min": ([], O(lead="eas_attention", lead_s=ten_min, trail_s=0)),
     }
 
 

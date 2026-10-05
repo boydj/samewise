@@ -1,6 +1,7 @@
 /*
- * Negative audio: 10 minutes each of white noise, silence and the 1050 Hz
- * attention tone must produce no headers and no EOMs.
+ * Negative audio: 10 minutes each of white noise, silence, the 1050 Hz NOAA
+ * Weather Radio alarm tone and the EAS two-tone attention signal (853 and
+ * 960 Hz together, 47 CFR 11.31(a)(2)) must produce no headers and no EOMs.
  */
 
 #include <zephyr/ztest.h>
@@ -38,6 +39,11 @@ ZTEST(same_negative, test_silence_10min)
 ZTEST(same_negative, test_1050hz_tone_10min)
 {
 	assert_quiet("tone1050_10min");
+}
+
+ZTEST(same_negative, test_eas_two_tone_attention_10min)
+{
+	assert_quiet("eas_attention_10min");
 }
 
 ZTEST_SUITE(same_negative, NULL, NULL, NULL, NULL, NULL);

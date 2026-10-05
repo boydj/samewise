@@ -60,6 +60,19 @@ static bool take_digits(struct cursor *c, size_t n, uint32_t *value)
 	return true;
 }
 
+/* 47 CFR 11.31(d)(1): "The only originator codes are" EAS, CIV, WXR and PEP. */
+static bool known_originator(const char *org)
+{
+	static const char codes[][4] = {"EAS", "CIV", "WXR", "PEP"};
+
+	for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
+		if (memcmp(org, codes[i], 3) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 int same_parse_header(const char *text, size_t len, struct same_header *out)
 {
 	struct cursor c = {text, len};
@@ -75,7 +88,8 @@ int same_parse_header(const char *text, size_t len, struct same_header *out)
 	c.p += 5;
 	c.left -= 5U;
 
-	if (!take_letters(&c, 3, out->originator) || !take_char(&c, '-')) {
+	if (!take_letters(&c, 3, out->originator) || !take_char(&c, '-') ||
+	    !known_originator(out->originator)) {
 		return SAME_PARSE_ERR_ORIGINATOR;
 	}
 	if (!take_letters(&c, 3, out->event) || !take_char(&c, '-')) {
@@ -127,8 +141,9 @@ int same_parse_header(const char *text, size_t len, struct same_header *out)
 	for (size_t i = 0; i < 8U; i++) {
 		char ch = c.p[i];
 
-		/* Printable ASCII other than '-'; chars may be signed. */
-		if ((unsigned char)ch < 0x20U || (unsigned char)ch > 0x7EU || ch == '-') {
+		/* Printable ASCII other than '-' and '+' (11.31(b)); chars may be signed. */
+		if ((unsigned char)ch < 0x20U || (unsigned char)ch > 0x7EU || ch == '-' ||
+		    ch == '+') {
 			return SAME_PARSE_ERR_STATION;
 		}
 		out->station[i] = ch;

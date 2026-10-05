@@ -142,8 +142,17 @@ class Noise(unittest.TestCase):
         self.assertTrue(np.array_equal(a, b))
         self.assertFalse(np.array_equal(a, c))
 
+    def test_eas_attention_signal_is_two_tones(self):
+        x, _ = sg.generate([], sg.Options(lead="eas_attention", lead_s=4.0, trail_s=0))
+        spec = np.abs(np.fft.rfft(x.astype(float)))
+        freqs = np.fft.rfftfreq(len(x), 1 / sg.SAME_RATE)
+        top = sorted(freqs[np.argsort(spec)[-2:]])
+        self.assertAlmostEqual(top[0], 853.0, delta=0.5)
+        self.assertAlmostEqual(top[1], 960.0, delta=0.5)
+        self.assertLessEqual(np.max(np.abs(x)), 0.5 * 32767 + 1, "peak stays at the AFSK amplitude")
+
     def test_lead_kinds(self):
-        for kind in ("silence", "noise", "tone1050"):
+        for kind in ("silence", "noise", "tone1050", "eas_attention"):
             samples, _ = sg.generate([], sg.Options(lead=kind, lead_s=2.0, trail_s=0))
             self.assertEqual(len(samples), round(2.0 * sg.SAME_RATE))
         with tempfile.TemporaryDirectory() as d:
@@ -193,6 +202,8 @@ class Expectations(unittest.TestCase):
 
 class Validation(unittest.TestCase):
     def test_valid(self):
+        for org in ("EAS", "CIV", "WXR", "PEP"):
+            self.assertTrue(sg.is_valid_header(HDR.replace("WXR", org)), org)
         for h in (HDR, "ZCZC-EAS-RWT-000000+0015-0010000-WXYZ AM -",
                   "ZCZC-CIV-CAE-" + "-".join(f"{i:06d}" for i in range(31)) + "+0600-3662359-KABC/FM -"):
             self.assertTrue(sg.is_valid_header(h), h)
@@ -211,6 +222,9 @@ class Validation(unittest.TestCase):
             HDR.replace("KEWX/NWS", "KEWX/NW"),     # station too short
             HDR.replace("KEWX/NWS", "KEWX-NWS"),    # dash in station
             HDR.replace("WXR", "wxr"),              # lower case
+            HDR.replace("WXR", "XYZ"),              # not an 11.31(d)(1) originator
+            HDR.replace("WXR", "EAN"),              # legacy originator, no longer listed
+            HDR.replace("KEWX/NWS", "KEWX+NWS"),    # '+' in station (11.31(b))
             HDR.replace("TOR", "T0R"),              # digit in event
             HDR[:-1],                               # no closing dash
             "ZCZC-WXR-TOR-" + "-".join(["048453"] * 32) + "+0030-2781915-KEWX/NWS-",  # 32 locations

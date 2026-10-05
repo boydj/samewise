@@ -4,12 +4,14 @@
  * Plain C99, no Zephyr includes. Validation is strict, and anything
  * malformed is rejected:
  *   - "ZCZC-" prefix and a closing '-' with nothing after it
- *   - ORG and EEE: 3 upper-case letters each
+ *   - ORG: EAS, CIV, WXR or PEP, the only originators in 47 CFR 11.31(d)(1)
+ *   - EEE: 3 upper-case letters (the event table, not the parser, knows codes)
  *   - 1 to 31 locations PSSCCC, 6 digits each, '-' between, '+' after the last
  *   - TTTT: 4 digits, minutes 00-59 (any hours; real encoders send
  *     nonstandard increments, and a warning must not be dropped over that)
  *   - JJJHHMM: 7 digits, Julian day 001-366, hour 00-23, minute 00-59 (UTC)
- *   - LLLLLLLL: 8 printable ASCII characters other than '-'
+ *   - LLLLLLLL: 8 printable ASCII characters other than '-' and '+', which
+ *     11.31(b) reserves as separators
  */
 
 #ifndef SERVICES_SAME_HEADER_H_
@@ -39,7 +41,7 @@ struct same_location {
 };
 
 struct same_header {
-	char originator[4]; /* ORG, NUL-terminated: EAS, CIV, WXR, PEP */
+	char originator[4]; /* ORG, NUL-terminated: EAS, CIV, WXR or PEP */
 	char event[4];      /* EEE, NUL-terminated: TOR, SVR, RWT ... */
 	uint8_t location_count;
 	struct same_location locations[SAME_MAX_LOCATIONS];

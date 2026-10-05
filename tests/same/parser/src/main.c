@@ -110,6 +110,9 @@ static const struct bad bad_headers[] = {
 	{"ZCZC-W1R-TOR-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_ORIGINATOR},
 	{"ZCZC-WX-TOR-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_ORIGINATOR},
 	{"ZCZC-WXRR-TOR-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_ORIGINATOR},
+	/* 47 CFR 11.31(d)(1): the only originator codes are EAS, CIV, WXR and PEP. */
+	{"ZCZC-XYZ-TOR-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_ORIGINATOR},
+	{"ZCZC-EAN-EAN-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_ORIGINATOR},
 	{"ZCZC-WXR-T0R-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_EVENT},
 	{"ZCZC-WXR-TO-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_EVENT},
 	{"ZCZC-WXR-TORR-048453+0030-2781915-KEWX/NWS-", SAME_PARSE_ERR_EVENT},
@@ -133,6 +136,8 @@ static const struct bad bad_headers[] = {
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NW-", SAME_PARSE_ERR_STATION},
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX-NWS-", SAME_PARSE_ERR_STATION},
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS", SAME_PARSE_ERR_STATION},
+	/* 11.31(b): '+' and '-' may not be used for any other purpose. */
+	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX+NWS-", SAME_PARSE_ERR_STATION},
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX\x01NWS-", SAME_PARSE_ERR_STATION},
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX\xC6NWS-", SAME_PARSE_ERR_STATION},
 	{"ZCZC-WXR-TOR-048453+0030-2781915-KEWX/NWS-X", SAME_PARSE_ERR_LENGTH},
@@ -146,6 +151,18 @@ ZTEST(same_parser, test_malformed_rejected)
 
 		zassert_equal(err, bad_headers[i].err, "\"%s\": got %d (%s), want %d",
 			      bad_headers[i].text, err, same_parse_strerror(err), bad_headers[i].err);
+	}
+}
+
+ZTEST(same_parser, test_every_originator_code)
+{
+	static const char *const orgs[] = {"EAS", "CIV", "WXR", "PEP"};
+	char buf[] = "ZCZC-XXX-RWT-048000+0015-2791700-KEWX/NWS-";
+
+	for (size_t i = 0; i < ARRAY_SIZE(orgs); i++) {
+		memcpy(buf + 5, orgs[i], 3);
+		zassert_equal(parse(buf), SAME_PARSE_OK, "%s", orgs[i]);
+		zassert_str_equal(h.originator, orgs[i]);
 	}
 }
 
