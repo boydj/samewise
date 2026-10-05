@@ -1,0 +1,6 @@
+tests:
+  app.alert_manager:
+    platform_allow: native_sim
+    integration_platforms:
+      - native_sim
+    tags: app

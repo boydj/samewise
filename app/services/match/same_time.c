@@ -62,6 +62,25 @@ int64_t same_issue_utc(const struct same_header *h, int64_t now_utc)
 	return best;
 }
 
+int64_t same_issue_utc_after(const struct same_header *h, int64_t floor_utc)
+{
+	int64_t year = same_year_of(floor_utc);
+
+	for (int64_t y = year - 1; y <= year + 4; y++) {
+		int64_t t;
+
+		if (h->issue_day < 1U || h->issue_day > (unsigned int)days_in_year(y)) {
+			continue;
+		}
+		t = (same_days_from_civil(y, 1, 1) + h->issue_day - 1) * SECONDS_PER_DAY +
+		    h->issue_hour * 3600 + h->issue_minute * 60;
+		if (t >= floor_utc - SECONDS_PER_DAY) {
+			return t;
+		}
+	}
+	return -1;
+}
+
 int64_t same_purge_s(const struct same_header *h)
 {
 	return (int64_t)h->purge_hours * 3600 + (int64_t)h->purge_minutes * 60;

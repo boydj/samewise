@@ -29,6 +29,14 @@ int64_t same_year_of(int64_t utc_s);
 /** Issue time as UTC seconds, the year inferred from now_utc; -1 if now_utc < 0. */
 int64_t same_issue_utc(const struct same_header *h, int64_t now_utc);
 
+/**
+ * Issue time as UTC seconds when the clock is unset and only a lower bound
+ * is known (the last time the radio knew UTC, or the firmware's epoch):
+ * the earliest valid year whose issue time is no more than a day before
+ * floor_utc. Time only moves forward while the radio is off.
+ */
+int64_t same_issue_utc_after(const struct same_header *h, int64_t floor_utc);
+
 /** Purge period +TTTT in seconds. */
 int64_t same_purge_s(const struct same_header *h);
 

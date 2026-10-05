@@ -99,18 +99,21 @@ Alert states:
 | Alerting | No key | Repeats every 5 min until a key |
 | Alerting | Any key | Silenced (alert on screen, LED) |
 | Alerting | Headphones in | Alert audio (broadcast in headphones) |
-| Alert audio | NNNN or headphones out | Silenced |
+| Alert audio | NNNN, headphones out or any key | Silenced |
 | Silenced | Purge time passes | Standby |
+| Alerting, Alert audio or Silenced | New matching alert (not a duplicate) | Alerting, or Alert audio if headphones are in |
+| Standby | Matching header with headphones already in | Alert audio |
 
-A key press silences an alert but keeps it on screen; only its purge time returns the radio to standby.
+A key press silences an alert but keeps it on screen; only its purge time returns the radio to standby. With several alerts active the screen shows the newest, and the radio returns to standby when the last one expires. While Silenced, tune and band presses are ignored. While Listening the tuner isn't on weather, so decoded headers are ignored entirely.
 
 Alert behaviour:
 
-- An unanswered alert sounds the buzzer and vibration for 2 minutes, then a 3-second reminder every 5 minutes until a key press or the purge time.
+- An unanswered alert sounds the buzzer and vibration for 2 minutes, then a 3-second reminder every 5 minutes (the first 5 minutes after the 2-minute period ends) until a key press or the purge time.
 - Plugging in headphones during an alert stops the buzzer and plays the broadcast; end of message (NNNN) ends the audio.
-- The key lock blocks every button except the silence press during an alert.
+- The key lock blocks every button except the silence press during an alert. During an alert any key only silences, locked or not; outside an alert the lock ignores every key, so standby can't be turned off while locked. Ignored presses don't count as input for the 60-minute listening timeout.
 - While you listen to AM or FM the single tuner can't monitor weather: the screen shows alerts paused, and the radio returns to standby after 60 minutes without input.
-- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old.
+- Only weekly tests (RWT) correct the clock, and only when the clock is unset or more than 5 minutes from the RWT's issue time. Other headers never touch the clock: a re-broadcast alert can carry an issue time hours old. Headers carry no year, so setting an unset clock takes the first year at or after the last UTC the radio stored (or the firmware's epoch). That stored time is refreshed on every clock set and daily.
+- The alert log keeps the last 16 non-duplicate headers that matched the counties, plus every test, each with its received time and outcome (alerted, filtered, unknown event, expired). Entries wait in RAM and are written to flash at low priority, so the alert path never waits on flash.
 - Vibration uses distinct patterns for warnings and watches, so the class is felt without looking.
 
 ## Health monitoring

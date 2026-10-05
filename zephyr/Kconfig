@@ -33,6 +33,15 @@ config WX_FAKE_WATCHDOG
 config WX_FAKE_STORAGE
 	bool "storage fake: records in memory, surviving simulated resets"
 
+config WX_FAKE_ALERT_OUT
+	bool "alert_out fake: timestamped log of buzzer, vibration and LED"
+
+config WX_FAKE_AUDIO_OUT
+	bool "audio_out fake: amplifier and routing state"
+
+config WX_FAKE_INPUT
+	bool "input fake: scripted key, lock and headphone events"
+
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
 	help
