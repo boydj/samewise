@@ -280,3 +280,27 @@ ZTEST(scenario, test_week_of_standby_battery_runs_fast)
 	TC_PRINT("simulated week took %lld s of wall time\n", wall_s);
 	zassert_true(wall_s < 60, "a simulated week in under a minute");
 }
+
+ZTEST(scenario, test_built_in_event_table)
+{
+	/*
+	 * TOR first: the RWT sets the clock to its issue time (Oct 6), after
+	 * which this Oct 5 TOR would already have expired and only be logged.
+	 */
+	const struct scn_event ev[] = {
+		{.at_ms = 10 * SECOND, .kind = SCN_WAV, .path = wav("tor")},
+		{.at_ms = 1 * MINUTE, .kind = SCN_WAV, .path = wav("rwt")},
+	};
+
+	/* A radio the phone never configured: blank storage, default table. */
+	scn_init();
+	scn_set_home(travis, 1);
+	r = scn_radio();
+	zassert_equal(r->settings.events.count, 58);
+
+	scn_run(ev, ARRAY_SIZE(ev), 2 * MINUTE);
+	zassert_equal(r->alerts.stats.filtered, 1, "RWT logged, not alerted");
+	zassert_equal(state(), ALERT_STATE_ALERTING, "TOR alerts");
+	zassert_str_equal(r->ui.event_name, "Tornado Warning");
+	zassert_equal(alert_out_fake_vibrate(), HAL_ALERT_PATTERN_WARNING);
+}

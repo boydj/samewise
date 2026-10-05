@@ -110,3 +110,14 @@ ZTEST(settings, test_storage_failure_is_reported)
 	zassert_equal(settings_load(&s2), 0);
 	zassert_equal(s2.channel, SETTINGS_CHANNEL_AUTO, "not persisted");
 }
+
+ZTEST(settings, test_default_event_table_round_trips)
+{
+	struct event_table t;
+
+	zassert_equal(s.events.count, 58, "built-in default loaded");
+	event_table_load_default(&t);
+	zassert_ok(settings_set_event_table(&s, &t), "the full table fits a storage record");
+	zassert_equal(settings_load(&s2), 0);
+	zassert_mem_equal(&s2.events, &t, sizeof(t));
+}
