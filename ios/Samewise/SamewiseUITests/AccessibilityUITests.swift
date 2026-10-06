@@ -72,9 +72,15 @@ final class AccessibilityUITests: XCTestCase {
         let app = launch()
         try audit(app, "Connect")
         connect(app)
-        // Audit the tabs once the connect screen's transition has finished:
-        // text still fading in measures as low contrast and unscaled.
+        // The audit's first pass after connecting reports findings that the
+        // same screen doesn't have a moment later (CI run 50: Settings failed
+        // first and passed when audited again at the end). It re-renders the
+        // screen at other text sizes, and the first re-render after the
+        // switch to the tabs isn't finished when it looks. So one pass is a
+        // warm-up whose findings are discarded; every tab is then audited.
         app.tabBars.buttons["Settings"].tap()
+        settle()
+        try? app.performAccessibilityAudit { _ in true }
         settle()
         try audit(app, "Settings")
         app.tabBars.buttons["Alert log"].tap()
@@ -83,10 +89,6 @@ final class AccessibilityUITests: XCTestCase {
         app.tabBars.buttons["Radio"].tap()
         settle()
         try audit(app, "Radio")
-        // Settings again, later: findings that come and go point at timing, not the view.
-        app.tabBars.buttons["Settings"].tap()
-        settle()
-        try audit(app, "Settings, again")
     }
 
     func testLargestTextStillWorks() {
