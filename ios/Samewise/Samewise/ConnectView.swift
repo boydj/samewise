@@ -22,14 +22,15 @@ struct ConnectView: View {
                         .font(.title2.bold())
                         .accessibilityIdentifier("connect.title")
                     ForEach(Array(advice.steps.enumerated()), id: \.offset) { i, step in
-                        Label {
-                            Text(step)
-                        } icon: {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text("\(i + 1)")
                                 .font(.headline)
                                 .accessibilityHidden(true)
+                            Text(step)
+                                .fixedSize(horizontal: false, vertical: true)  // wrap, never truncate
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityIdentifier("connect.step\(i + 1)")
                         }
-                        .accessibilityIdentifier("connect.step\(i + 1)")
                     }
                     if session.linkState == .searching || session.linkState == .connecting {
                         HStack(spacing: 12) {

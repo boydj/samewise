@@ -18,6 +18,7 @@ struct RootView: View {
                 FakeRadioButton()
             }
         }
+        .tint(.appAccent)
     }
 }
 
@@ -32,4 +33,9 @@ struct MainTabs: View {
                 .tabItem { Label("Alert log", systemImage: "list.bullet.rectangle") }
         }
     }
+}
+
+extension Color {
+    /// A blue dark enough for white text on prominent buttons (about 6.8:1).
+    static let appAccent = Color(red: 0, green: 0.36, blue: 0.75)
 }

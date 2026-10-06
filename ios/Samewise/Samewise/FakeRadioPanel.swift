@@ -14,7 +14,7 @@ struct FakeRadioButton: View {
             Label("Simulated radio", systemImage: "dot.radiowaves.left.and.right")
                 .font(.footnote)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.borderedProminent)
         .padding(.bottom, 60)
         .accessibilityIdentifier("fake.open")
         .sheet(isPresented: $showing) { FakeRadioPanel() }
