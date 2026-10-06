@@ -11,7 +11,7 @@ struct LogView: View {
                 ProblemSection()
                 if session.log.isEmpty {
                     Text("No alerts received yet.")
-                        .foregroundStyle(.secondary)
+                        
                         .accessibilityIdentifier("log.empty")
                 }
                 ForEach(Array(session.log.enumerated()), id: \.offset) { i, entry in
@@ -23,11 +23,11 @@ struct LogView: View {
                             .font(.subheadline)
                         Text(row.outcome)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            
                         if !row.locations.isEmpty {
                             Text(row.locations.map { CountyTable.shared.name($0) }.joined(separator: ", "))
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                
                         }
                     }
                     .accessibilityElement(children: .combine)

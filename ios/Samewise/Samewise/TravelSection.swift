@@ -30,7 +30,10 @@ struct TravelSection: View {
                 Task { await locate() }
             } label: {
                 HStack {
-                    Label("Use my location", systemImage: "location")
+                    Image(systemName: "location")
+                        .accessibilityHidden(true)
+                    Text("Use my location")
+                        .fixedSize(horizontal: false, vertical: true)
                     if locating {
                         Spacer()
                         ProgressView()
@@ -50,10 +53,9 @@ struct TravelSection: View {
                     .foregroundStyle(.orange)
                     .accessibilityIdentifier("travel.problem")
             }
+            Note("In travel mode the radio alerts for the travel counties instead of your home counties. While it's on, this iPhone updates them each time it connects.")
         } header: {
-            Text("Travel")
-        } footer: {
-            Text("In travel mode the radio alerts for the travel counties instead of your home counties. While it's on, this iPhone updates them each time it connects.")
+            SectionTitle("Travel")
         }
     }
 

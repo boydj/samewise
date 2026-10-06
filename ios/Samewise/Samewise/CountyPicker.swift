@@ -31,10 +31,10 @@ struct CountyPicker: View {
                 }
                 .onDelete { codes.remove(atOffsets: $0) }
                 if codes.isEmpty {
-                    Text("None yet. Search below.").foregroundStyle(.secondary)
+                    Text("None yet. Search below.")
                 }
             } header: {
-                Text("Chosen (\(codes.count) of \(Codec.maxCounties))")
+                SectionTitle("Chosen (\(codes.count) of \(Codec.maxCounties))")
             }
             if advanced {
                 Section {
@@ -43,13 +43,12 @@ struct CountyPicker: View {
                             Text(CountyTable.subdivisions[p]).tag(p)
                         }
                     }
-                } footer: {
-                    Text("Some offices warn for part of a county. Most people want All.")
+                    Note("Some offices warn for part of a county. Most people want All.")
                 }
             }
-            Section("Results") {
+            TitledSection("Results") {
                 if table.isEmpty {
-                    Text("The county list is missing from this build.").foregroundStyle(.secondary)
+                    Text("The county list is missing from this build.")
                 }
                 ForEach(table.search(query), id: \.code) { c in
                     Button(c.title) { add(String(subdivision) + c.code.dropFirst()) }

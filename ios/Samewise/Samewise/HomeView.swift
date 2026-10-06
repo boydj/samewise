@@ -14,15 +14,15 @@ struct HomeView: View {
                 if let status = session.status {
                     let s = StatusSummary(status, document: session.document, now: Date())
                     if !s.warnings.isEmpty {
-                        Section("Warnings") {
+                        TitledSection("Warnings") {
                             ForEach(s.warnings, id: \.name) { w in
                                 Label(w.text, systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(Color.appWarning)
                                     .accessibilityIdentifier("home.warning.\(w.name)")
                             }
                         }
                     }
-                    Section("Radio") {
+                    TitledSection("Radio") {
                         LabeledContent("Battery", value: s.battery)
                             .accessibilityIdentifier("home.battery")
                         LabeledContent("Time left", value: s.hoursLeft)
@@ -33,10 +33,10 @@ struct HomeView: View {
                         LabeledContent("Keys", value: s.locked ? "Locked" : "Unlocked")
                     }
                 }
-                Section("Counties") {
+                TitledSection("Counties") {
                     if session.settings.home.isEmpty {
                         Text("None chosen. The radio alerts for no county until you add one.")
-                            .foregroundStyle(.secondary)
+                            
                             .accessibilityIdentifier("home.noCounties")
                     }
                     ForEach(session.settings.home, id: \.self) { code in
@@ -48,7 +48,7 @@ struct HomeView: View {
                     }
                 }
                 if let rule = session.timeRule, !rule.exact {
-                    Section("Clock") {
+                    TitledSection("Clock") {
                         Text("This time zone's daylight-saving rules can't be sent to the radio, so it has the current offset. It's refreshed every time this iPhone connects.")
                             .font(.footnote)
                     }
@@ -59,16 +59,16 @@ struct HomeView: View {
                     Button("Clear alert log") { Task { await session.send(.clearLog) } }
                         .accessibilityIdentifier("control.clear")
                     Button("Factory reset", role: .destructive) { confirmingReset = true }
+                        .foregroundStyle(Color.appWarning)
                         .accessibilityIdentifier("control.reset")
                     if let outcome = session.lastControl {
                         Text(outcome.text)
                             .font(.callout)
                             .accessibilityIdentifier("control.result")
                     }
+                    Note("A factory reset clears every setting and the log, and the radio forgets every phone. You confirm it on the radio.")
                 } header: {
-                    Text("Control")
-                } footer: {
-                    Text("A factory reset clears every setting and the log, and the radio forgets every phone. You confirm it on the radio.")
+                    SectionTitle("Control")
                 }
             }
             .navigationTitle("Radio")

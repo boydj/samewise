@@ -11,7 +11,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 ProblemSection()
-                Section("Home counties") {
+                TitledSection("Home counties") {
                     ForEach(session.settings.home, id: \.self) { code in
                         Text(CountyTable.shared.name(code))
                     }
@@ -23,7 +23,7 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.homeCounties")
                 }
                 TravelSection()
-                Section("Weather channel") {
+                TitledSection("Weather channel") {
                     Picker("Channel", selection: Binding(
                         get: { session.settings.channel },
                         set: { c in Task { await session.setMode(travel: session.settings.travelMode, channel: c) } }
@@ -32,9 +32,10 @@ struct SettingsView: View {
                             Text(WeatherChannel.title(c)).tag(c)
                         }
                     }
+                    .pickerStyle(.navigationLink)  // the value wraps; a menu's label clips
                     .accessibilityIdentifier("settings.channel")
                 }
-                Section("Alerts") {
+                TitledSection("Alerts") {
                     NavigationLink {
                         FilterView()
                     } label: {
@@ -70,18 +71,17 @@ struct FilterView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
                 .accessibilityIdentifier("filter.preset")
-            } footer: {
-                Text(preset.detail + " Tests never sound an alert; they're logged.")
+                Note(preset.detail + " Tests never sound an alert; they're logged.")
             }
             if preset == .custom {
-                Section("Events") {
+                TitledSection("Events") {
                     ForEach(CustomFilter.choosable(session.events), id: \.code) { e in
                         Toggle(isOn: Binding(get: { chosen.contains(e.code) }, set: { toggle(e.code, $0) })) {
                             VStack(alignment: .leading) {
                                 Text(e.name)
                                 Text(EventClass.name(e.eventClass))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    
                             }
                         }
                         .accessibilityIdentifier("filter.event.\(e.code)")
@@ -113,6 +113,7 @@ struct PresetsSection: View {
     @Environment(RadioSession.self) private var session
     @State private var band = Codec.Band.fm
     @State private var text = ""
+    @State private var invalid: String?
 
     private var presets: [Codec.Preset] { session.settings.presets }
 
@@ -138,20 +139,30 @@ struct PresetsSection: View {
                     TextField(PresetText.hint(band), text: $text)
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("presets.frequency")
+                    // Always enabled (a disabled button's grey text fails the
+                    // contrast check); an invalid frequency is explained instead.
                     Button("Add") { add() }
-                        .disabled(PresetText.parse(band: band, text) == nil)
                         .accessibilityIdentifier("presets.add")
                 }
+                if let invalid {
+                    Text(invalid)
+                        .font(.footnote)
+                        .foregroundStyle(Color.appWarning)
+                        .accessibilityIdentifier("presets.invalid")
+                }
             }
+            Note("Up to \(Codec.maxPresets). \(PresetText.hint(band)).")
         } header: {
-            Text("Presets")
-        } footer: {
-            Text("Up to \(Codec.maxPresets). \(PresetText.hint(band)).")
+            SectionTitle("Presets")
         }
     }
 
     private func add() {
-        guard let p = PresetText.parse(band: band, text) else { return }
+        guard let p = PresetText.parse(band: band, text) else {
+            invalid = "Type a frequency from \(PresetText.hint(band))."
+            return
+        }
+        invalid = nil
         text = ""
         Task { await session.setPresets(presets + [p]) }
     }
