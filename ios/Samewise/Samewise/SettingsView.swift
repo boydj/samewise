@@ -135,15 +135,14 @@ struct PresetsSection: View {
                     Text("Weather").tag(Codec.Band.wb)
                 }
                 .pickerStyle(.segmented)
-                HStack {
-                    TextField(PresetText.hint(band), text: $text)
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("presets.frequency")
-                    // Always enabled (a disabled button's grey text fails the
-                    // contrast check); an invalid frequency is explained instead.
-                    Button("Add") { add() }
-                        .accessibilityIdentifier("presets.add")
-                }
+                TextField(PresetText.hint(band), text: $text)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("presets.frequency")
+                // A row of its own, always enabled (a disabled button's grey
+                // text fails the contrast check); an invalid frequency is
+                // explained instead.
+                Button("Add preset") { add() }
+                    .accessibilityIdentifier("presets.add")
                 if let invalid {
                     Text(invalid)
                         .font(.footnote)

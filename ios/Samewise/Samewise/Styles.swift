@@ -48,7 +48,6 @@ struct Note: View {
     var body: some View {
         Text(text)
             .font(.footnote)
-            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
