@@ -199,6 +199,31 @@ jobs:
               print("\n**{}**\n\n```\n{}\n```".format(f["testName"], f["failureText"][:20000]))
           ' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Accessibility audit findings (report-only)
+        if: always()
+        run: |
+          xcrun xcresulttool get test-results test-details \
+            --test-id "AccessibilityUITests/testEveryScreenPassesTheAccessibilityAudit()" \
+            --path "$RUNNER_TEMP/Samewise.xcresult" > a11y.json || true
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          def strings(x):
+              if isinstance(x, dict):
+                  for v in x.values():
+                      yield from strings(v)
+              elif isinstance(x, list):
+                  for v in x:
+                      yield from strings(v)
+              elif isinstance(x, str):
+                  yield x
+          try:
+              found = sorted({s for s in strings(json.load(open("a11y.json"))) if "A11Y:" in s})
+          except Exception as e:
+              found = [f"(couldn't read the audit results: {e})"]
+          print("\n### Accessibility audit (report-only)\n")
+          print("\n".join(f"- {f[f.index('A11Y:') + 5:].strip() if 'A11Y:' in f else f}" for f in found) or "No findings.")
+          PY
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4

@@ -23,16 +23,16 @@ Done when CI builds the app and passes its unit and UI tests on a macOS runner, 
 Unit tests:
 
 - [ ] The county table converts names to SAME codes and back, including territories
-- [ ] POSIX TZ strings generated for at least 10 zones (U.S. zones, Arizona, Hawaii, a southern-hemisphere zone, Europe/London) match `TimeZone` offsets every 15 minutes across 2026–2028, checked through `GattModel`'s TZ parser
-- [ ] Every settings screen round-trips through the fake link
-- [ ] A rejected write shows the mapped error and the screen reverts to the radio's values
-- [ ] Status and Alert log notifications update the screens
+- [x] POSIX TZ strings generated for at least 10 zones (U.S. zones, Arizona, Hawaii, a southern-hemisphere zone, Europe/London) match `TimeZone` offsets every 15 minutes across 2026–2028, checked through `GattModel`'s TZ parser
+- [x] Every settings screen round-trips through the fake link
+- [x] A rejected write shows the mapped error and the screen reverts to the radio's values
+- [x] Status and Alert log notifications update the screens
 
 UI tests on the simulator with the fake link:
 
 - [ ] First run: pair, choose counties, see them on the home screen
 - [ ] Travel mode with a mocked location writes the right travel counties
-- [ ] Factory reset waits for confirmation and shows the result
+- [x] Factory reset waits for confirmation and shows the result
 
 Manual on your iPhone with the Mac mock (`swift run MockPeripheral`):
 
