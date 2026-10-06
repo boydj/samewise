@@ -22,19 +22,37 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertTrue(app.element("home.battery").waitForExistence(timeout: 10), "connected")
     }
 
-    /// Runs the audit and fails once per screen with every issue spelled out.
+    /// Audits a screen a screenful at a time: each element is judged while
+    /// it is fully visible between the navigation bar and the tab bar, then
+    /// the screen scrolls on. (Elements cut off by the screen edge or behind
+    /// a translucent bar otherwise read as clipped and low-contrast.) Fails
+    /// once per screen with every issue spelled out.
+    ///
     /// One exception: iOS caps the text size of navigation bar buttons, so
     /// their Dynamic Type finding is the system's, not the app's.
-    func audit(_ app: XCUIApplication, _ screen: String) throws {
+    func audit(_ app: XCUIApplication, _ screen: String, pages: Int = 4) throws {
         var issues: [String] = []
         let barButtons = Set(app.navigationBars.buttons.allElementsBoundByIndex.map(\.identifier).filter { !$0.isEmpty })
-        try app.performAccessibilityAudit { issue in
-            if issue.auditType == .dynamicType, let id = issue.element?.identifier, barButtons.contains(id) {
+        for page in 0..<pages {
+            let window = app.windows.firstMatch.frame
+            let top = app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.frame.maxY : window.minY
+            let bottom = app.tabBars.firstMatch.exists ? app.tabBars.firstMatch.frame.minY : window.maxY
+            let visible = CGRect(x: window.minX, y: top, width: window.width, height: bottom - top)
+            try app.performAccessibilityAudit { issue in
+                if let e = issue.element {
+                    if issue.auditType == .dynamicType, barButtons.contains(e.identifier) { return true }
+                    if !visible.contains(e.frame) { return true }  // judged on the page where it's whole
+                }
+                let element = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' id '\($0.identifier)'" }
+                let text = "\(issue.compactDescription): \(element ?? "no element")"
+                if !issues.contains(text) {
+                    issues.append(text)
+                }
                 return true
             }
-            let element = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' id '\($0.identifier)'" }
-            issues.append("\(issue.compactDescription): \(element ?? "no element")")
-            return true
+            if page < pages - 1 {
+                app.swipeUp()
+            }
         }
         XCTAssertEqual(issues, [], "\(screen): " + issues.joined(separator: "; "))
     }
