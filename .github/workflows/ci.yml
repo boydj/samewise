@@ -186,6 +186,17 @@ jobs:
           -resultBundlePath "$RUNNER_TEMP/Samewise.xcresult"
           CODE_SIGNING_ALLOWED=NO -quiet
 
+      - name: Test summary
+        if: always()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/Samewise.xcresult" | tee summary.json
+          python3 -c '
+          import json
+          s = json.load(open("summary.json"))
+          print("| Result | Passed | Failed | Skipped |\n| --- | --- | --- | --- |")
+          print("| {} | {} | {} | {} |".format(s["result"], s["passedTests"], s["failedTests"], s["skippedTests"]))
+          ' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
