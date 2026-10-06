@@ -48,6 +48,11 @@ public final class FakeRadioLink: RadioLink {
             MainActor.assumeIsolated {
                 guard let self, self.state == .connected, let chr = Chr(rawValue: name) else { return }
                 self.onEvent(.value(chr, bytes))
+                // As the firmware: a confirmed factory reset indicates, then unpairs every phone.
+                if chr == .control, bytes == Codec.encodeControlIndication(.factoryReset, .done) {
+                    self.radioForgetsPhone()
+                    self.dropLink()
+                }
             }
         }
     }

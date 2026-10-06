@@ -26,6 +26,10 @@ struct MainTabs: View {
         TabView {
             HomeView()
                 .tabItem { Label("Radio", systemImage: "antenna.radiowaves.left.and.right") }
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+            LogView()
+                .tabItem { Label("Alert log", systemImage: "list.bullet.rectangle") }
         }
     }
 }

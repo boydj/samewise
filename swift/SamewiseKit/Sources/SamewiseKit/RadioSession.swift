@@ -50,7 +50,7 @@ public final class RadioSession {
     /// the next success or dismiss().
     public private(set) var problem: RadioError?
 
-    /// Run on every connection after the time sync, before the settings
+    /// Run on every connection once the time is synced and the settings
     /// are read (travel counties). Set by the app.
     @ObservationIgnored
     public var onConnect: [(RadioSession) async -> Void] = []
@@ -104,16 +104,22 @@ public final class RadioSession {
         case .value(let chr, let bytes):
             received(chr, bytes)
         case .failed(let e):
-            problem = e
+            // After a factory reset the radio has forgotten every phone, so
+            // the way back is the stale-bond one: forget it here, pair again.
+            if e == .disconnected, lastControl == ControlOutcome(command: .factoryReset, result: .done) {
+                problem = .staleBond
+            } else {
+                problem = e
+            }
         }
     }
 
     private func didConnect() async {
         await syncTime()
-        for step in onConnect {
+        await reloadAll()
+        for step in onConnect where loaded {
             await step(self)
         }
-        await reloadAll()
     }
 
     // MARK: - Reading

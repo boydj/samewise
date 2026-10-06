@@ -181,11 +181,10 @@ final class RadioSessionTests: XCTestCase {
         XCTAssertEqual(session.problem, .disconnected)
     }
 
-    func testOnConnectStepsRunBeforeTheReads() async {
+    func testOnConnectStepsRunAfterTheReads() async {
         var order: [String] = []
         session.onConnect = [{ s in order.append("step loaded=\(s.loaded)") }]
         await connected()
-        XCTAssertEqual(order, ["step loaded=false"])
-        XCTAssertTrue(session.loaded)
+        XCTAssertEqual(order, ["step loaded=true"])
     }
 }

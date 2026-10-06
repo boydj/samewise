@@ -17,7 +17,8 @@ let package = Package(
         .package(path: "../GattModel"),
     ],
     targets: [
-        .target(name: "SamewiseKit", dependencies: ["GattModel"]),
+        // Resources/counties.txt: tools/counties/build_counties.py, from the Census FIPS lists.
+        .target(name: "SamewiseKit", dependencies: ["GattModel"], resources: [.process("Resources")]),
         .testTarget(name: "SamewiseKitTests", dependencies: ["SamewiseKit"]),
     ]
 )

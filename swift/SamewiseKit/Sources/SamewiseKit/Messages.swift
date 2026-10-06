@@ -133,3 +133,27 @@ extension RadioError {
         }
     }
 }
+
+extension RadioSession.ControlOutcome {
+    /// What the Control screen shows for the radio's indication.
+    public var text: String {
+        switch (command, result) {
+        case (.factoryReset, .awaitingConfirmation):
+            return "Confirm on the radio: long-press STBY. Any other key cancels."
+        case (.factoryReset, .done):
+            return "The radio was reset to factory settings and forgot every phone."
+        case (.factoryReset, .cancelled):
+            return "Factory reset cancelled. Nothing was changed."
+        case (.testAlert, .done):
+            return "The radio is sounding a test alert for 2 minutes."
+        case (.testAlert, .rejected):
+            return "The radio is busy (listening, alerting or in a menu). Try the test alert from standby."
+        case (.clearLog, .done):
+            return "The alert log was cleared."
+        case (_, .rejected):
+            return "The radio refused the command."
+        default:
+            return "Done."
+        }
+    }
+}
