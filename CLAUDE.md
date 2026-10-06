@@ -31,6 +31,7 @@ ios/Samewise/       iPhone setup app (SwiftUI)
 tools/mock-peripheral/  macOS stand-in for the radio over Bluetooth
 tools/samegen/      synthetic SAME generator (Python)
 tools/vectors/      WAV test vectors (git LFS) with JSON sidecars
+tools/counties/     the app's county table, built from the Census FIPS lists
 docs/               spec, milestones, decoder reports
 ```
 
