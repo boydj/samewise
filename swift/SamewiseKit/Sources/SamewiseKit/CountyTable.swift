@@ -129,9 +129,16 @@ public final class CountyTable: Sendable {
         return Array(results.sorted { ($0.name, $0.state.name) < ($1.name, $1.state.name) }.prefix(limit))
     }
 
+    /// A state by postal code or name, or by part of a long name ("Virgin
+    /// Islands" for "United States Virgin Islands").
     public func findState(_ text: String) -> State? {
         let t = Self.normalize(text)
-        return states.first { Self.normalize($0.name) == t || $0.postal.lowercased() == t }
+        guard !t.isEmpty else { return nil }
+        if let exact = states.first(where: { Self.normalize($0.name) == t || $0.postal.lowercased() == t }) {
+            return exact
+        }
+        guard t.count >= 4 else { return nil }
+        return states.first { (" " + Self.normalize($0.name) + " ").contains(" " + t + " ") }
     }
 
     // MARK: - From a reverse-geocoded place

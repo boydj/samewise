@@ -22,7 +22,7 @@ Done when CI builds the app and passes its unit and UI tests on a macOS runner, 
 
 Unit tests:
 
-- [ ] The county table converts names to SAME codes and back, including territories
+- [x] The county table converts names to SAME codes and back, including territories
 - [x] POSIX TZ strings generated for at least 10 zones (U.S. zones, Arizona, Hawaii, a southern-hemisphere zone, Europe/London) match `TimeZone` offsets every 15 minutes across 2026–2028, checked through `GattModel`'s TZ parser
 - [x] Every settings screen round-trips through the fake link
 - [x] A rejected write shows the mapped error and the screen reverts to the radio's values
