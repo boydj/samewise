@@ -57,15 +57,26 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertEqual(issues, [], "\(screen): " + issues.joined(separator: "; "))
     }
 
+    /// Lets animations finish before an audit.
+    func settle() {
+        Thread.sleep(forTimeInterval: 1.5)
+    }
+
     func testEveryScreenPassesTheAccessibilityAudit() throws {
         let app = launch()
         try audit(app, "Connect")
         connect(app)
-        try audit(app, "Radio")
+        // Audit the tabs once the connect screen's transition has finished:
+        // text still fading in measures as low contrast and unscaled.
         app.tabBars.buttons["Settings"].tap()
+        settle()
         try audit(app, "Settings")
         app.tabBars.buttons["Alert log"].tap()
+        settle()
         try audit(app, "Alert log")
+        app.tabBars.buttons["Radio"].tap()
+        settle()
+        try audit(app, "Radio")
     }
 
     func testLargestTextStillWorks() {
