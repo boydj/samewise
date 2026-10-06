@@ -15,7 +15,7 @@ struct FakeRadioButton: View {
                 .font(.footnote)
         }
         .buttonStyle(.borderedProminent)
-        .padding(.bottom, 60)
+        .padding(.vertical, 4)
         .accessibilityIdentifier("fake.open")
         .sheet(isPresented: $showing) { FakeRadioPanel() }
     }

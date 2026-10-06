@@ -13,7 +13,8 @@ struct RootView: View {
                 ConnectView()
             }
         }
-        .overlay(alignment: .bottom) {
+        // Below the content, never over it.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if session.link is FakeRadioLink {
                 FakeRadioButton()
             }

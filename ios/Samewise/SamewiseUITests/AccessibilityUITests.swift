@@ -23,9 +23,15 @@ final class AccessibilityUITests: XCTestCase {
     }
 
     /// Runs the audit and fails once per screen with every issue spelled out.
+    /// One exception: iOS caps the text size of navigation bar buttons, so
+    /// their Dynamic Type finding is the system's, not the app's.
     func audit(_ app: XCUIApplication, _ screen: String) throws {
         var issues: [String] = []
+        let barButtons = Set(app.navigationBars.buttons.allElementsBoundByIndex.map(\.identifier).filter { !$0.isEmpty })
         try app.performAccessibilityAudit { issue in
+            if issue.auditType == .dynamicType, let id = issue.element?.identifier, barButtons.contains(id) {
+                return true
+            }
             let element = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' id '\($0.identifier)'" }
             issues.append("\(issue.compactDescription): \(element ?? "no element")")
             return true
