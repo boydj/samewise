@@ -24,7 +24,10 @@ public final class CoreLocationLookup: NSObject, LocationLookup {
                 manager.requestWhenInUseAuthorization()
             }
         }
-        guard status == .authorizedWhenInUse || status == .authorizedAlways else { throw LocationError.denied }
+        // .authorizedWhenInUse doesn't exist on macOS; anything but these is allowed.
+        guard status != .denied && status != .restricted && status != .notDetermined else {
+            throw LocationError.denied
+        }
         let location = try await withCheckedThrowingContinuation { cont in
             fix = cont
             manager.requestLocation()

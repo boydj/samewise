@@ -23,7 +23,7 @@ final class RadioUITests: XCTestCase {
 
     func testFactoryResetWaitsForConfirmationAndShowsTheResult() {
         app.buttons["control.reset"].tap()
-        app.buttons["control.resetConfirm"].tap()
+        app.buttons["control.resetConfirm"].firstMatch.tap()  // the dialog nests the button
         let result = app.element("control.result")
         XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertTrue(result.label.contains("long-press STBY"), result.label)
@@ -37,7 +37,7 @@ final class RadioUITests: XCTestCase {
 
     func testCancelledFactoryReset() {
         app.buttons["control.reset"].tap()
-        app.buttons["control.resetConfirm"].tap()
+        app.buttons["control.resetConfirm"].firstMatch.tap()  // the dialog nests the button
         XCTAssertTrue(app.element("control.result").waitForExistence(timeout: 5))
         fakeRadio("fake.cancel")
         XCTAssertTrue(app.element("control.result").label.contains("cancelled"))
