@@ -153,6 +153,29 @@ final class GattModelTests: XCTestCase {
         XCTAssertEqual(radio.utc, 1_791_172_800, "rejected writes leave the clock")
     }
 
+    func testLocalTimeAsTheRadioComputesIt() throws {
+        let ny = try XCTUnwrap(PosixTimeZone.parse("EST5EDT,M3.2.0,M11.1.0"))
+        XCTAssertEqual(ny.stdOffsetS, -18000)
+        XCTAssertEqual(ny.dstOffsetS, -14400)
+        // 2026: daylight time from 8 March 07:00 UTC to 1 November 06:00 UTC.
+        let start: Int64 = 1_772_953_200
+        let end: Int64 = 1_793_512_800
+        XCTAssertFalse(ny.local(utc: start - 1).dst)
+        XCTAssertTrue(ny.local(utc: start).dst)
+        XCTAssertTrue(ny.local(utc: end - 1).dst)
+        XCTAssertFalse(ny.local(utc: end).dst)
+        XCTAssertEqual(ny.local(utc: start).seconds, start - 14400)
+
+        // Southern hemisphere: the rules wrap the new year.
+        let sydney = try XCTUnwrap(PosixTimeZone.parse("AEST-10AEDT,M10.1.0,M4.1.0/3"))
+        XCTAssertTrue(sydney.local(utc: 1_767_225_600).dst, "1 January 2026")
+        XCTAssertFalse(sydney.local(utc: 1_782_864_000).dst, "1 July 2026")
+
+        let fixed = try XCTUnwrap(PosixTimeZone.parse("<+0530>-5:30"))
+        XCTAssertEqual(fixed.local(utc: 0).seconds, 19800)
+        XCTAssertNil(PosixTimeZone.parse("EST5EDT"))
+    }
+
     func testEventTableStagedWrite() throws {
         let tor = Codec.Event(code: "TOR", eventClass: 0, name: "Tornado Warning")
         let rwt = Codec.Event(code: "RWT", eventClass: 4, name: "Required Weekly Test")

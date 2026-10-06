@@ -43,21 +43,31 @@ public final class RadioSession {
     /// Newest first, as the radio indexes it.
     public private(set) var log: [Codec.LogEntry] = []
     public private(set) var lastControl: ControlOutcome?
+    /// The time zone sent on this connection; exact is false when the
+    /// phone's zone could only be sent as its current offset.
+    public private(set) var timeRule: TimeZoneRule?
     /// The last thing that went wrong, for the screen to explain; cleared by
     /// the next success or dismiss().
     public private(set) var problem: RadioError?
 
-    /// Run on every connection before the settings are read (time sync,
-    /// travel counties). Set by the app.
+    /// Run on every connection after the time sync, before the settings
+    /// are read (travel counties). Set by the app.
     @ObservationIgnored
     public var onConnect: [(RadioSession) async -> Void] = []
 
     @ObservationIgnored
     private var connectTask: Task<Void, Never>?
+    @ObservationIgnored
+    private let now: () -> Date
+    @ObservationIgnored
+    private let timeZone: () -> TimeZone
 
-    public init(link: RadioLink, document: GattDocument = .bundled) {
+    public init(link: RadioLink, document: GattDocument = .bundled, now: @escaping () -> Date = Date.init,
+                timeZone: @escaping () -> TimeZone = { TimeZone.current }) {
         self.link = link
         self.document = document
+        self.now = now
+        self.timeZone = timeZone
         link.onEvent = { [weak self] event in self?.handle(event) }
         linkState = link.state
     }
@@ -99,6 +109,7 @@ public final class RadioSession {
     }
 
     private func didConnect() async {
+        await syncTime()
         for step in onConnect {
             await step(self)
         }
@@ -224,6 +235,18 @@ public final class RadioSession {
             }
         }
         return accepted
+    }
+
+    /// Set the radio's clock and time zone from the phone's. Runs on every
+    /// connection.
+    @discardableResult
+    public func syncTime() async -> Bool {
+        let date = now()
+        let rule = TimeZoneRule.make(for: timeZone(), at: date)
+        let utc = Int64(date.timeIntervalSince1970.rounded(.down))
+        let ok = await write(.time, Codec.encodeTime(utc: utc, tz: rule.tz))
+        timeRule = ok ? rule : nil
+        return ok
     }
 
     @discardableResult
