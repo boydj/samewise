@@ -30,8 +30,8 @@ Unit tests:
 
 UI tests on the simulator with the fake link:
 
-- [ ] First run: pair, choose counties, see them on the home screen
-- [ ] Travel mode with a mocked location writes the right travel counties
+- [x] First run: pair, choose counties, see them on the home screen
+- [x] Travel mode with a mocked location writes the right travel counties
 - [x] Factory reset waits for confirmation and shows the result
 
 Manual on your iPhone with the Mac mock (`swift run MockPeripheral`):
