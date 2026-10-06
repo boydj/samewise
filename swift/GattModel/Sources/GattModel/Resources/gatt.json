@@ -82,5 +82,22 @@
     {"name": "SEQUENCE", "code": 130, "meaning": "event table entry or commit out of order"},
     {"name": "BUSY", "code": 131, "meaning": "a command is waiting for confirmation on the radio"},
     {"name": "INDEX", "code": 132, "meaning": "selected index is past the end of the list"}
+  ],
+  "health_flags": [
+    {"name": "NO_SIGNAL", "mask": 1},
+    {"name": "NO_WEEKLY_TEST", "mask": 2},
+    {"name": "BATTERY_LOW", "mask": 4},
+    {"name": "BATTERY_CRITICAL", "mask": 8},
+    {"name": "TUNER_FAULT", "mask": 16}
+  ],
+  "log_outcomes": [
+    {"name": "ALERTED", "value": 0},
+    {"name": "FILTERED", "value": 1},
+    {"name": "UNKNOWN", "value": 2},
+    {"name": "EXPIRED", "value": 3},
+    {"name": "TEST", "value": 4}
+  ],
+  "log_flags": [
+    {"name": "FUTURE_ISSUE", "mask": 1}
   ]
 }

@@ -132,10 +132,10 @@ jobs:
           path: samewise/bsim.log
           if-no-files-found: ignore
 
-  mock-peripheral:
-    # The shared Swift model (swift/GattModel), checked against
-    # docs/gatt.json, and the iPhone app's stand-in for the radio, built
-    # against CoreBluetooth.
+  swift:
+    # The Swift packages: GattModel (checked against docs/gatt.json),
+    # SamewiseKit (the app's logic, with CoreBluetooth on macOS) and the
+    # iPhone app's stand-in for the radio, the mock peripheral.
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -144,9 +144,55 @@ jobs:
         working-directory: swift/GattModel
         run: swift test
 
+      - name: SamewiseKit tests
+        working-directory: swift/SamewiseKit
+        run: swift test
+
       - name: Build the mock peripheral
         working-directory: tools/mock-peripheral
         run: swift build
+
+  ios:
+    # The iPhone app (app milestone 1): generate the project with XcodeGen,
+    # then build it and run its unit and UI tests on a simulator, where it
+    # uses the fake radio.
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios/Samewise
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          xcodebuild -version
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
+          print(next(d["udid"] for r in ios for d in runtimes[r] if d["name"].startswith("iPhone")))')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: >-
+          xcodebuild test -project Samewise.xcodeproj -scheme Samewise
+          -destination "id=${{ steps.sim.outputs.udid }}"
+          -resultBundlePath "$RUNNER_TEMP/Samewise.xcresult"
+          CODE_SIGNING_ALLOWED=NO -quiet
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: ${{ runner.temp }}/Samewise.xcresult
+          if-no-files-found: ignore
 
   xiao:
     # The XIAO nRF52840 image (milestone 3.5): size against the MCUboot

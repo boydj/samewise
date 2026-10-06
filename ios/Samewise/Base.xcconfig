@@ -1,0 +1,10 @@
+// Shared settings. Put your own team and a bundle ID that is yours in
+// Local.xcconfig (not committed); a free Apple ID works:
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   SAMEWISE_BUNDLE_ID = com.yourname.samewise
+
+SAMEWISE_BUNDLE_ID = io.github.boydj.samewise
+CODE_SIGN_STYLE = Automatic
+
+#include? "Local.xcconfig"

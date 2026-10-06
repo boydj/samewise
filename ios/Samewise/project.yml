@@ -1,0 +1,71 @@
+# XcodeGen spec for the iPhone setup app. Generate the Xcode project with
+#   brew install xcodegen && xcodegen
+# (the .xcodeproj is not committed). Signing: see README.md.
+name: Samewise
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Base.xcconfig
+  Release: Base.xcconfig
+packages:
+  GattModel:
+    path: ../../swift/GattModel
+  SamewiseKit:
+    path: ../../swift/SamewiseKit
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  Samewise:
+    type: application
+    platform: iOS
+    sources: [Samewise]
+    dependencies:
+      - package: GattModel
+      - package: SamewiseKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(SAMEWISE_BUNDLE_ID)
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: WX Radio
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: >-
+          WX Radio connects to your weather radio over Bluetooth to set it up
+          and show its status and alert log.
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: >-
+          In travel mode, WX Radio looks up the county you're in so the radio
+          sounds alerts for it.
+  SamewiseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [SamewiseTests]
+    dependencies:
+      - target: Samewise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(SAMEWISE_BUNDLE_ID).tests
+  SamewiseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [SamewiseUITests]
+    dependencies:
+      - target: Samewise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(SAMEWISE_BUNDLE_ID).uitests
+        TEST_TARGET_NAME: Samewise
+schemes:
+  Samewise:
+    build:
+      targets:
+        Samewise: all
+    test:
+      targets:
+        - SamewiseTests
+        - SamewiseUITests

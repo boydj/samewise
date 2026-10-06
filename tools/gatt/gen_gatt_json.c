@@ -7,6 +7,8 @@
 
 #include "services/ble/gatt_table.h"
 #include "services/match/event_table.h"
+#include "src/app/alert_log.h"
+#include "src/app/ui_model.h"
 
 static void props(unsigned int p)
 {
@@ -86,6 +88,31 @@ int main(void)
 	first = 0;
 	WX_GATT_ERRORS(WX_GATT_ERR_JSON)
 #undef WX_GATT_ERR_JSON
+	printf("\n  ],\n");
+
+	/* What Status and the Alert log carry, named from the firmware's own enums. */
+#define VALUE_JSON(key, id, prefix)                                                              \
+	printf("%s    {\"name\": \"" #id "\", \"" key "\": %u}", first ? "" : ",\n",            \
+	       (unsigned)prefix##id);                                                            \
+	first = 0;
+	printf("  \"health_flags\": [\n");
+	first = 1;
+	VALUE_JSON("mask", NO_SIGNAL, UI_WARN_)
+	VALUE_JSON("mask", NO_WEEKLY_TEST, UI_WARN_)
+	VALUE_JSON("mask", BATTERY_LOW, UI_WARN_)
+	VALUE_JSON("mask", BATTERY_CRITICAL, UI_WARN_)
+	VALUE_JSON("mask", TUNER_FAULT, UI_WARN_)
+	printf("\n  ],\n  \"log_outcomes\": [\n");
+	first = 1;
+	VALUE_JSON("value", ALERTED, ALERT_LOG_)
+	VALUE_JSON("value", FILTERED, ALERT_LOG_)
+	VALUE_JSON("value", UNKNOWN, ALERT_LOG_)
+	VALUE_JSON("value", EXPIRED, ALERT_LOG_)
+	VALUE_JSON("value", TEST, ALERT_LOG_)
+	printf("\n  ],\n  \"log_flags\": [\n");
+	first = 1;
+	VALUE_JSON("mask", FUTURE_ISSUE, ALERT_LOG_FLAG_)
+#undef VALUE_JSON
 	printf("\n  ]\n}\n");
 	return 0;
 }
