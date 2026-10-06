@@ -43,8 +43,10 @@ final class AccessibilityUITests: XCTestCase {
                     if issue.auditType == .dynamicType, barButtons.contains(e.identifier) { return true }
                     if !visible.contains(e.frame) { return true }  // judged on the page where it's whole
                 }
-                let element = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' id '\($0.identifier)'" }
-                let text = "\(issue.compactDescription): \(element ?? "no element")"
+                let element = issue.element.map {
+                    "\($0.elementType.rawValue) '\($0.label)' id '\($0.identifier)' at \($0.frame)"
+                }
+                let text = "\(issue.compactDescription) [\(issue.detailedDescription)]: \(element ?? "no element")"
                 if !issues.contains(text) {
                     issues.append(text)
                 }
@@ -54,7 +56,11 @@ final class AccessibilityUITests: XCTestCase {
                 app.swipeUp()
             }
         }
-        XCTAssertEqual(issues, [], "\(screen): " + issues.joined(separator: "; "))
+        if !issues.isEmpty {
+            // What was on screen, as text: CI's result bundle can't be opened from every machine.
+            XCTFail("\(screen) at \(Date()): " + issues.joined(separator: "; ")
+                    + "\nScreen:\n" + String(app.debugDescription.prefix(6000)))
+        }
     }
 
     /// Lets animations finish before an audit.
@@ -77,6 +83,10 @@ final class AccessibilityUITests: XCTestCase {
         app.tabBars.buttons["Radio"].tap()
         settle()
         try audit(app, "Radio")
+        // Settings again, later: findings that come and go point at timing, not the view.
+        app.tabBars.buttons["Settings"].tap()
+        settle()
+        try audit(app, "Settings, again")
     }
 
     func testLargestTextStillWorks() {

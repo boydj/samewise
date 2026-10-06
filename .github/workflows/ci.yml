@@ -195,6 +195,8 @@ jobs:
           s = json.load(open("summary.json"))
           print("| Result | Passed | Failed | Skipped |\n| --- | --- | --- | --- |")
           print("| {} | {} | {} | {} |".format(s["result"], s["passedTests"], s["failedTests"], s["skippedTests"]))
+          for f in s.get("testFailures", []):
+              print("\n**{}**\n\n```\n{}\n```".format(f["testName"], f["failureText"][:20000]))
           ' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
