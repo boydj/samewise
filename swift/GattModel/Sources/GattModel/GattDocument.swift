@@ -1,13 +1,13 @@
 import Foundation
 
 /// docs/gatt.json, generated from the firmware's services/ble/gatt_table.h.
-public struct GattDocument: Decodable {
-    public struct Service: Decodable {
+public struct GattDocument: Decodable, Sendable {
+    public struct Service: Decodable, Sendable {
         public let name: String
         public let uuid: String
     }
 
-    public struct Characteristic: Decodable {
+    public struct Characteristic: Decodable, Sendable {
         public let name: String
         public let uuid: String
         public let properties: [String]
@@ -26,7 +26,7 @@ public struct GattDocument: Decodable {
         public var indicates: Bool { properties.contains("indicate") }
     }
 
-    public struct Event: Decodable {
+    public struct Event: Decodable, Sendable {
         public let code: String
         public let eventClass: Int
         public let name: String
@@ -37,12 +37,12 @@ public struct GattDocument: Decodable {
         }
     }
 
-    public struct EventTable: Decodable {
+    public struct EventTable: Decodable, Sendable {
         public let version: Int
         public let entries: [Event]
     }
 
-    public struct ErrorCode: Decodable {
+    public struct ErrorCode: Decodable, Sendable {
         public let name: String
         public let code: Int
         public let meaning: String
@@ -62,13 +62,28 @@ public struct GattDocument: Decodable {
         try JSONDecoder().decode(GattDocument.self, from: Data(contentsOf: url))
     }
 
+    /// The copy of docs/gatt.json built into this package, for the app and
+    /// the mock. tools/gatt/gatt_json.py writes it and checks it is current.
+    public static var bundledURL: URL {
+        Bundle.module.url(forResource: "gatt", withExtension: "json")!
+    }
+
+    /// The built-in copy, decoded once.
+    public static let bundled: GattDocument = {
+        do {
+            return try load(from: bundledURL)
+        } catch {
+            fatalError("The bundled gatt.json doesn't decode: \(error)")
+        }
+    }()
+
     /// docs/gatt.json in this repository, found from this source file's path.
     public static var repositoryURL: URL {
         URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // GattModel
+            .deletingLastPathComponent()  // GattModel (target)
             .deletingLastPathComponent()  // Sources
-            .deletingLastPathComponent()  // mock-peripheral
-            .deletingLastPathComponent()  // tools
+            .deletingLastPathComponent()  // GattModel (package)
+            .deletingLastPathComponent()  // swift
             .deletingLastPathComponent()  // repository
             .appendingPathComponent("docs/gatt.json")
     }

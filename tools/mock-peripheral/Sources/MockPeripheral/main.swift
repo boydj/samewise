@@ -202,7 +202,7 @@ func handle(_ line: String, _ radio: RadioState) {
 }
 
 let path = CommandLine.arguments.count > 1 ? URL(fileURLWithPath: CommandLine.arguments[1])
-                                           : GattDocument.repositoryURL
+                                           : GattDocument.bundledURL
 let document: GattDocument
 do {
     document = try GattDocument.load(from: path)

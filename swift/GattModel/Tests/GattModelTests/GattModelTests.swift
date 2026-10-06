@@ -16,6 +16,13 @@ final class GattModelTests: XCTestCase {
 
     // MARK: - The mock follows docs/gatt.json
 
+    func testBundledCopyIsDocsGattJson() throws {
+        XCTAssertEqual(try Data(contentsOf: GattDocument.bundledURL),
+                       try Data(contentsOf: GattDocument.repositoryURL),
+                       "run tools/gatt/gatt_json.py")
+        XCTAssertEqual(GattDocument.bundled.service.uuid, document.service.uuid)
+    }
+
     func testServesEveryCharacteristic() {
         XCTAssertEqual(Set(document.characteristics.map(\.name)), RadioState.served)
         for c in document.characteristics {

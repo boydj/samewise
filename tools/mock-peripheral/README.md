@@ -7,10 +7,14 @@ Bluetooth). It is generated from the same source as the firmware: it loads
 `app/services/ble/gatt_table.h`, and starts with the firmware's default
 event table from the same file.
 
+The radio's behaviour lives in the shared Swift package `swift/GattModel`,
+which the iPhone app uses too; this package adds only CoreBluetooth and the
+keyboard.
+
 ```
-swift run MockPeripheral                 # uses docs/gatt.json in this repository
+swift run MockPeripheral                 # uses GattModel's copy of docs/gatt.json
 swift run MockPeripheral path/to/gatt.json
-swift test                               # the model; runs on Linux too
+(cd ../../swift/GattModel && swift test) # the model; runs on Linux too
 ```
 
 The first run asks for Bluetooth permission (System Settings, Privacy &
@@ -19,7 +23,7 @@ Security, Bluetooth).
 ## What it does
 
 - Serves every characteristic in `docs/gatt.json` with the same layouts.
-- Validates writes exactly as the radio does (a Swift port of
+- Validates writes exactly as the radio does (GattModel's Swift port of
   `services/ble/codec.c` and the POSIX TZ parser) and returns the radio's
   ATT errors from `docs/gatt.json`; a rejected write changes nothing.
 - Event table and alert log reads are indexed, and event table writes are

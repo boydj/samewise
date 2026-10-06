@@ -16,7 +16,7 @@ _spec.loader.exec_module(gj)
 @unittest.skipUnless(shutil.which("cc") or shutil.which("gcc"), "needs a C compiler")
 class GattJson(unittest.TestCase):
     def test_checked_in_file_is_current(self):
-        self.assertEqual(gj.main(["--check"]), 0, "run tools/gatt/gatt_json.py and commit docs/gatt.json")
+        self.assertEqual(gj.main(["--check"]), 0, "run tools/gatt/gatt_json.py and commit docs/gatt.json and the Swift copy")
 
     def test_layout(self):
         g = json.loads(gj.OUT.read_text())

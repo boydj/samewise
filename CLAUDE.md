@@ -26,6 +26,9 @@ app/
   fakes/            native_sim fakes
   boards/           board overlays
 tests/              ztest suites, run with twister on native_sim; tests/bsim on nrf52_bsim
+swift/GattModel/    shared Swift codec, TZ parser and radio model (app and mock)
+ios/Samewise/       iPhone setup app (SwiftUI)
+tools/mock-peripheral/  macOS stand-in for the radio over Bluetooth
 tools/samegen/      synthetic SAME generator (Python)
 tools/vectors/      WAV test vectors (git LFS) with JSON sidecars
 docs/               spec, milestones, decoder reports
@@ -43,6 +46,8 @@ tests/bsim/run.sh    # Bluetooth on nrf52_bsim; needs BabbleSim, see below
 west build -b xiao_ble/nrf52840 app -d build-xiao      # needs the Zephyr SDK's ARM toolchain
 python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf --json build-xiao/size.json
 tests/renode/run.sh <renode dir> build-xiao renode-out [native_sim console log]
+(cd swift/GattModel && swift test)                     # also runs on Linux
+(cd tools/mock-peripheral && swift run MockPeripheral) # macOS
 ```
 
 Workspace setup (T2 layout, from the directory containing this repo): `west init -l samewise && west update --narrow -o=--depth=1`. Zephyr in the pinned NCS needs Python 3.12 or newer; install `zephyr/scripts/requirements-{base,build-test,run-test}.txt` and `tools/requirements.txt`. `native_sim` needs `gcc-multilib`, and without the Zephyr SDK set `ZEPHYR_TOOLCHAIN_VARIANT=host`. NCS builds use sysbuild by default, so the app binary lands in `build/app/`. Synthetic test vectors are generated into each test's build directory at build time (`tools/vectors/build_vectors.py`); only RTL-SDR recordings are committed (git LFS).

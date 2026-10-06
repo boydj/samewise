@@ -133,20 +133,20 @@ jobs:
           if-no-files-found: ignore
 
   mock-peripheral:
-    # The iPhone app's stand-in for the radio: builds against CoreBluetooth
-    # and checks the model against docs/gatt.json.
+    # The shared Swift model (swift/GattModel), checked against
+    # docs/gatt.json, and the iPhone app's stand-in for the radio, built
+    # against CoreBluetooth.
     runs-on: macos-15
-    defaults:
-      run:
-        working-directory: tools/mock-peripheral
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build
-        run: swift build
-
-      - name: Test
+      - name: GattModel tests
+        working-directory: swift/GattModel
         run: swift test
+
+      - name: Build the mock peripheral
+        working-directory: tools/mock-peripheral
+        run: swift build
 
   xiao:
     # The XIAO nRF52840 image (milestone 3.5): size against the MCUboot

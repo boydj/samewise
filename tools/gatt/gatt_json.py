@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Generate or check docs/gatt.json from app/services/ble/gatt_table.h.
 
-  gatt_json.py            rewrite docs/gatt.json
-  gatt_json.py --check    exit 1 if docs/gatt.json is out of date
+  gatt_json.py            rewrite docs/gatt.json and the Swift package's copy
+  gatt_json.py --check    exit 1 if either is out of date
+
+The Swift package (swift/GattModel) carries the same file as a resource, so
+the iPhone app and the mock peripheral have it without the repository.
 
 Compiles tools/gatt/gen_gatt_json.c with the host C compiler, which
 includes the firmware header directly (and links the default event table),
@@ -19,6 +22,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 OUT = ROOT / "docs" / "gatt.json"
+SWIFT_COPY = ROOT / "swift" / "GattModel" / "Sources" / "GattModel" / "Resources" / "gatt.json"
+OUTPUTS = (OUT, SWIFT_COPY)
 
 
 def generate() -> str:
@@ -41,12 +46,13 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
     text = generate()
     if a.check:
-        if not OUT.exists() or OUT.read_text() != text:
-            print(f"{OUT.relative_to(ROOT)} is out of date: run tools/gatt/gatt_json.py", file=sys.stderr)
-            return 1
-        return 0
-    OUT.write_text(text)
-    print(f"wrote {OUT.relative_to(ROOT)}")
+        stale = [o for o in OUTPUTS if not o.exists() or o.read_text() != text]
+        for o in stale:
+            print(f"{o.relative_to(ROOT)} is out of date: run tools/gatt/gatt_json.py", file=sys.stderr)
+        return 1 if stale else 0
+    for o in OUTPUTS:
+        o.write_text(text)
+        print(f"wrote {o.relative_to(ROOT)}")
     return 0
 
 
