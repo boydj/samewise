@@ -1,0 +1,10 @@
+/ {
+	chosen {
+		zephyr,display = &recording_display;
+	};
+
+	recording_display: recording-display {
+		compatible = "zephyr,wx-recording-display";
+		status = "okay";
+	};
+};

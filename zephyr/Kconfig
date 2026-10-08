@@ -97,6 +97,9 @@ config WX_FAKE_TUNER
 config WX_FAKE_BATTERY
 	bool "battery fake: scripted discharge curve, records ship mode"
 
+config WX_FAKE_DISPLAY
+	bool "display fake: framebuffer in RAM, flushes counted and holdable"
+
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
 	depends on ARCH_POSIX
@@ -132,6 +135,13 @@ config WX_DRV_WATCHDOG
 config WX_DRV_STORAGE
 	bool "storage on Zephyr settings"
 	depends on SETTINGS
+
+config WX_DRV_DISPLAY
+	bool "display on Zephyr's display API (zephyr,display)"
+	depends on DISPLAY
+	help
+	  hal/display.h on the chosen display: the Sharp memory LCD through
+	  sharp,ls0xx on the board, SDL on native_sim. Sends changed rows only.
 
 config WX_AUDIO_CLIP
 	bool "audio_in from a SAME clip compiled into flash"

@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "hal/clock.h"
+#include "hal/display.h"
 #include "hal/audio_in.h"
 #include "hal/input.h"
 #include "hal/tuner.h"
@@ -45,6 +46,11 @@ static void on_input(const struct hal_input_event *e, void *user)
 	struct radio *r = user;
 	enum alert_state before = alert_mgr_state(&r->alerts);
 
+	if (e->type == HAL_INPUT_PRESS || e->type == HAL_INPUT_LONG_PRESS ||
+	    e->type == HAL_INPUT_COMBO) {
+		r->ui.key_presses++;
+	}
+
 	alert_mgr_on_input(&r->alerts, e);
 	if (r->ble.app != NULL &&
 	    (before == ALERT_STATE_STANDBY || before == ALERT_STATE_LISTENING)) {
@@ -71,6 +77,8 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 	r->ble.app = NULL;
 	power_init();
 	ui_model_init(&r->ui);
+	ui_render_init(&r->render);
+	r->backlight = false;
 	alert_log_init();
 	clock_sync_init(firmware_epoch_utc);
 	same_init(&r->decoder, on_header, on_eom, r);
@@ -178,6 +186,26 @@ void radio_ui_update(struct radio *r)
 	ui->phone_connected = r->ble.app != NULL && r->ble.connected;
 	ui->ble_seconds = r->ble.app != NULL ? ble_screen_seconds(&r->ble, ui->uptime_ms) : 0U;
 	ui_model_refresh(ui);
+}
+
+void radio_ui_tick(struct radio *r, const struct radio_lock *lk)
+{
+	static struct ui_model snapshot;
+	bool light;
+
+	lk->lock(lk->user);
+	radio_ui_update(r);
+	snapshot = r->ui;
+	lk->unlock(lk->user);
+
+	if (ui_render_frame(&r->render, &snapshot, snapshot.uptime_ms)) {
+		(void)hal_display_flush();
+	}
+	light = ui_render_backlight(&r->render, snapshot.uptime_ms);
+	if (light != r->backlight) {
+		r->backlight = light;
+		(void)hal_display_backlight(light);
+	}
 }
 
 void radio_low_priority(struct radio *r)

@@ -1,0 +1,6 @@
+tests:
+  drivers.display:
+    platform_allow: native_sim
+    integration_platforms:
+      - native_sim
+    tags: drivers display

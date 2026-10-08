@@ -6,7 +6,8 @@
  * Threads:
  *   - main: the decoder (radio_pump_audio), highest application priority;
  *   - supervisor: hal/clock.h timers (drivers/clock_zephyr.c);
- *   - system work queue: low-priority work every second, Bluetooth port
+ *   - system work queue: low-priority work every second, the UI step
+ *     (draw and flush the display, outside the app lock), Bluetooth port
  *     operations;
  *   - Bluetooth host: GATT and connection callbacks.
  * One mutex, the app lock, serialises everything that touches application
@@ -38,6 +39,9 @@
 #endif
 #if defined(CONFIG_WX_FAKE_BATTERY)
 #include "fakes/battery_fake.h"
+#endif
+#if defined(CONFIG_WX_FAKE_DISPLAY)
+#include "fakes/display_fake.h"
 #endif
 #if defined(CONFIG_WX_FAKE_INPUT)
 #include "fakes/input_fake.h"
@@ -105,6 +109,32 @@ static void low_priority(struct k_work *work)
 
 static K_WORK_DELAYABLE_DEFINE(low_priority_work, low_priority);
 
+/* ---- The display: drawn and flushed without the app lock ---- */
+
+#define UI_STEP_MS 1000
+
+static void lock_cb(void *user)
+{
+	ARG_UNUSED(user);
+	lock();
+}
+
+static void unlock_cb(void *user)
+{
+	ARG_UNUSED(user);
+	unlock();
+}
+
+static const struct radio_lock ui_lock = {.lock = lock_cb, .unlock = unlock_cb};
+
+static void ui_step(struct k_work *work)
+{
+	radio_ui_tick(&radio, &ui_lock);
+	(void)k_work_schedule(k_work_delayable_from_work(work), K_MSEC(UI_STEP_MS));
+}
+
+static K_WORK_DELAYABLE_DEFINE(ui_work, ui_step);
+
 /* ---- Bluetooth ---- */
 
 #if defined(CONFIG_WX_BLE_ZEPHYR)
@@ -146,6 +176,9 @@ static void stand_ins_init(void)
 #endif
 #if defined(CONFIG_WX_FAKE_BATTERY)
 	battery_fake_init();
+#endif
+#if defined(CONFIG_WX_FAKE_DISPLAY)
+	display_fake_init();
 #endif
 #if defined(CONFIG_WX_FAKE_INPUT)
 	input_fake_init();
@@ -216,6 +249,7 @@ int main(void)
 	k_thread_name_set(&bt_start_thread, "wx_bt_start");
 #endif
 	(void)k_work_schedule(&low_priority_work, K_MSEC(LOW_PRIORITY_MS));
+	(void)k_work_schedule(&ui_work, K_NO_WAIT);
 
 #if defined(CONFIG_WX_AUDIO_CLIP)
 	benchmark();

@@ -9,6 +9,7 @@
 #include "fakes/audio_out_fake.h"
 #include "fakes/battery_fake.h"
 #include "fakes/clock_fake.h"
+#include "fakes/display_fake.h"
 #include "fakes/input_fake.h"
 #include "fakes/storage_fake.h"
 #include "fakes/tuner_fake.h"
@@ -29,6 +30,8 @@ static struct {
 	uint32_t boots;
 	bool off;
 	bool decoder_stalled;
+	int64_t ui_ms;
+	uint8_t ui_screen;
 } s;
 
 static void boot(void)
@@ -62,6 +65,7 @@ void scn_init(void)
 	input_fake_init();
 	tuner_fake_init();
 	battery_fake_init();
+	display_fake_init();
 	watchdog_fake_init(on_watchdog_reset, NULL);
 	boot();
 }
@@ -114,6 +118,35 @@ bool scn_device_off(void)
 	return s.off;
 }
 
+/*
+ * The UI step, once a simulated minute (the board runs it every second;
+ * once a minute keeps a simulated week fast and still draws every screen
+ * the scenarios reach). Single-threaded here, so the lock is a no-op.
+ */
+#define UI_EVERY_MS 60000
+
+static void no_lock(void *user)
+{
+	(void)user;
+}
+
+static const struct radio_lock runner_lock = {.lock = no_lock, .unlock = no_lock};
+
+static void low_priority(void)
+{
+	int64_t now = hal_clock_uptime_ms();
+
+	if (s.off) {
+		return;
+	}
+	radio_low_priority(&s.radio);
+	if (now - s.ui_ms >= UI_EVERY_MS || s.radio.ui.screen != s.ui_screen) {
+		radio_ui_tick(&s.radio, &runner_lock);
+		s.ui_ms = now;
+		s.ui_screen = s.radio.ui.screen;
+	}
+}
+
 /* Advance to t in idle steps with heartbeats (none while the decoder is stalled). */
 static void idle_to(int64_t t)
 {
@@ -125,9 +158,7 @@ static void idle_to(int64_t t)
 			radio_idle_audio(&s.radio, (uint32_t)SAME_MS_TO_SAMPLES(step));
 		}
 		clock_fake_advance_ms(step);
-		if (!s.off) {
-			radio_low_priority(&s.radio);
-		}
+		low_priority();
 	}
 }
 
@@ -196,9 +227,7 @@ static size_t play(const char *path, const struct scn_event *ev, size_t n, size_
 		}
 		played += (uint64_t)got;
 		clock_fake_advance_ms(start + samples_to_ms(played) - hal_clock_uptime_ms());
-		if (!s.off) {
-			radio_low_priority(&s.radio);
-		}
+		low_priority();
 	}
 	audio_in_fake_close();
 	return next;

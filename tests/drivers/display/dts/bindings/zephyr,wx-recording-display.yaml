@@ -1,0 +1,5 @@
+description: A display that records what it is sent (tests/drivers/display).
+
+compatible: "zephyr,wx-recording-display"
+
+include: base.yaml

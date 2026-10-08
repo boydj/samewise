@@ -97,6 +97,7 @@ struct ui_model {
 	uint16_t ble_seconds;     /* left in the window or confirmation shown */
 	int64_t uptime_ms;        /* when radio_ui_update() ran */
 	int64_t local_s;          /* local time then, -1 while the clock is unset */
+	uint32_t key_presses;     /* every key event, ignored ones too (backlight) */
 
 	/* From the Bluetooth service. */
 	uint8_t ble_screen; /* enum ble_screen; 0 = nothing to show */

@@ -21,6 +21,7 @@
 #include "app/health.h"
 #include "app/settings.h"
 #include "app/ui_model.h"
+#include "app/ui_render.h"
 #include "services/ble/ble_service.h"
 #include "services/same/same_decoder.h"
 
@@ -47,6 +48,8 @@ struct radio {
 	uint32_t ui_log_seen; /* alert_log_appended() when ui.last_event was read */
 	int64_t ui_last_utc;  /* that entry's received time, -1 if none or unknown */
 	const struct radio_trace *trace;
+	struct ui_render render; /* touched only by radio_ui_tick() */
+	bool backlight;
 };
 
 /**
@@ -91,6 +94,20 @@ uint32_t radio_weather_khz(uint8_t channel);
  * from storage when it has grown); the UI thread calls it before drawing.
  */
 void radio_ui_update(struct radio *r);
+
+struct radio_lock {
+	void (*lock)(void *user);
+	void (*unlock)(void *user);
+	void *user;
+};
+
+/**
+ * One UI step, about once a second at low priority: under the lock, update
+ * the screen model and copy it; then, without the lock, draw and flush the
+ * display and set the backlight. The display can take its time (an SPI
+ * transfer) and the alert path never waits for it.
+ */
+void radio_ui_tick(struct radio *r, const struct radio_lock *lk);
 
 #ifdef __cplusplus
 }
