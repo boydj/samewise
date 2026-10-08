@@ -1,6 +1,6 @@
 # Pocket WX Radio — Firmware Architecture Spec
 
-Exported Oct 4, 2026. Living version: https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac
+Exported Oct 8, 2026. Living version: https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac
 
 ## Scope and goals
 
