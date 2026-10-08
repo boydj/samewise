@@ -37,7 +37,7 @@ Done when every check below passes in CI, renders of every screen sit next to th
 - [x] `hal/battery.h` on the MAX17048 and BQ25180 drivers passes against the emulators, including temperature fault and ship mode
 - [x] `hal/tuner.h` on the Si4743 driver passes against the emulator: each band, tune limits, seek found and not found, status, mute, RDS, I2C errors as -EIO
 - [x] Renders of every screen are in the README next to the design
-- [ ] The XIAO build still fits its flash and RAM budget
+- [x] The XIAO build still fits its flash and RAM budget (281.3 KB flash, 59.6% of a slot; 99.4 KB RAM, 38.8%)
 
 ## Decided along the way
 
