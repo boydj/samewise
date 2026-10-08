@@ -8,12 +8,12 @@ import PackageDescription
 let package = Package(
     name: "MockPeripheral",
     platforms: [.macOS(.v13)],
-    targets: [
+    dependencies: [
         // The radio's behaviour: values, validation, indexed reads, Control.
-        // Foundation only, so it is unit-tested without Bluetooth.
-        .target(name: "GattModel"),
+        .package(path: "../../swift/GattModel"),
+    ],
+    targets: [
         // CoreBluetooth peripheral and keyboard commands.
         .executableTarget(name: "MockPeripheral", dependencies: ["GattModel"]),
-        .testTarget(name: "GattModelTests", dependencies: ["GattModel"]),
     ]
 )

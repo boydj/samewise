@@ -16,7 +16,7 @@ _spec.loader.exec_module(gj)
 @unittest.skipUnless(shutil.which("cc") or shutil.which("gcc"), "needs a C compiler")
 class GattJson(unittest.TestCase):
     def test_checked_in_file_is_current(self):
-        self.assertEqual(gj.main(["--check"]), 0, "run tools/gatt/gatt_json.py and commit docs/gatt.json")
+        self.assertEqual(gj.main(["--check"]), 0, "run tools/gatt/gatt_json.py and commit docs/gatt.json and the Swift copy")
 
     def test_layout(self):
         g = json.loads(gj.OUT.read_text())
@@ -37,6 +37,14 @@ class GattJson(unittest.TestCase):
         self.assertIn("TOR", codes)
         self.assertTrue(all(0 <= e["class"] <= 4 for e in g["default_event_table"]["entries"]))
         self.assertEqual({e["name"]: e["code"] for e in g["errors"]}["SCHEMA"], 0x80)
+
+    def test_status_and_log_values(self):
+        g = json.loads(gj.OUT.read_text())
+        masks = [f["mask"] for f in g["health_flags"]]
+        self.assertTrue(all(m and m & (m - 1) == 0 for m in masks), "one bit each")
+        self.assertEqual(len(set(masks)), len(masks))
+        self.assertEqual([o["value"] for o in g["log_outcomes"]], list(range(len(g["log_outcomes"]))))
+        self.assertEqual({o["name"]: o["value"] for o in g["log_outcomes"]}["TEST"], 4, "RadioState.outcomeTest")
 
 
 if __name__ == "__main__":

@@ -16,6 +16,13 @@ final class GattModelTests: XCTestCase {
 
     // MARK: - The mock follows docs/gatt.json
 
+    func testBundledCopyIsDocsGattJson() throws {
+        XCTAssertEqual(try Data(contentsOf: GattDocument.bundledURL),
+                       try Data(contentsOf: GattDocument.repositoryURL),
+                       "run tools/gatt/gatt_json.py")
+        XCTAssertEqual(GattDocument.bundled.service.uuid, document.service.uuid)
+    }
+
     func testServesEveryCharacteristic() {
         XCTAssertEqual(Set(document.characteristics.map(\.name)), RadioState.served)
         for c in document.characteristics {
@@ -60,6 +67,54 @@ final class GattModelTests: XCTestCase {
         XCTAssertEqual(Codec.encodeTime(utc: 0, tz: tz).count, document.characteristic("time")!.maxLength)
     }
 
+    func testStatusAndLogValuesComeFromGattJson() {
+        let outcomes = Dictionary(uniqueKeysWithValues: document.logOutcomes.map { ($0.name, $0.value) })
+        XCTAssertEqual(outcomes["ALERTED"], UInt32(RadioState.outcomeAlerted))
+        XCTAssertEqual(outcomes["TEST"], UInt32(RadioState.outcomeTest))
+        XCTAssertEqual(document.healthFlags.first { $0.name == "NO_SIGNAL" }?.value, 1)
+        XCTAssertEqual(document.logFlags.map(\.name), ["FUTURE_ISSUE"])
+    }
+
+    // MARK: - The phone's side: decoding what the radio sends
+
+    func testPhoneDecodesEventTableReads() throws {
+        let first = try Codec.decodeEventTableRead(radio.read("event_table").get())
+        XCTAssertEqual(Int(first.count), document.defaultEventTable.entries.count)
+        XCTAssertEqual(first.index, 0)
+        XCTAssertEqual(first.event.code, document.defaultEventTable.entries[0].code)
+        XCTAssertEqual(first.event.name, document.defaultEventTable.entries[0].name)
+        XCTAssertNil(radio.write("event_table", Codec.encodeEventTableWrite(.select(index: 2))))
+        XCTAssertEqual(try Codec.decodeEventTableRead(radio.read("event_table").get()).index, 2)
+
+        var bad = try radio.read("event_table").get()
+        bad[4] = bad[3]  // index past the count
+        XCTAssertThrowsError(try Codec.decodeEventTableRead(bad))
+        XCTAssertThrowsError(try Codec.decodeEventTableRead(Array(bad.dropLast())))
+    }
+
+    func testPhoneDecodesLogEntriesAndNotifications() throws {
+        XCTAssertNil(radio.write("time", Codec.encodeTime(utc: 1_791_172_800, tz: "UTC0")))
+        radio.injectAlert(event: "SVR", location: "048029")
+        let notified = try Codec.decodeLogEntry(sent.last!.1)
+        XCTAssertEqual(notified.count, 1)
+        XCTAssertEqual(notified.index, 0)
+        XCTAssertEqual(notified.entry.receivedUtc, 1_791_172_800)
+        XCTAssertEqual(notified.entry.outcome, RadioState.outcomeAlerted)
+        XCTAssertTrue(notified.entry.raw.hasPrefix("ZCZC-WXR-SVR-048029+0030-"))
+        XCTAssertNil(radio.write("alert_log", Codec.encodeLogSelect(0)))
+        XCTAssertEqual(try Codec.decodeLogEntry(radio.read("alert_log").get()), notified)
+        XCTAssertThrowsError(try Codec.decodeLogEntry(sent.last!.1 + [0x41]), "trailing byte")
+    }
+
+    func testPhoneDecodesControlIndications() throws {
+        XCTAssertNil(radio.write("control", Codec.encodeCommand(.factoryReset)))
+        let (cmd, result) = try Codec.decodeControlIndication(sent.last!.1)
+        XCTAssertEqual(cmd, .factoryReset)
+        XCTAssertEqual(result, .awaitingConfirmation)
+        XCTAssertThrowsError(try Codec.decodeControlIndication([1, 3, 9]))
+        XCTAssertThrowsError(try Codec.decodeControlIndication([1, 3]))
+    }
+
     // MARK: - Validation, as on the radio
 
     func testCountiesRoundTripAndRejections() throws {
@@ -96,6 +151,29 @@ final class GattModelTests: XCTestCase {
             XCTAssertEqual(radio.write("time", Codec.encodeTime(utc: 5, tz: tz)), .value, tz)
         }
         XCTAssertEqual(radio.utc, 1_791_172_800, "rejected writes leave the clock")
+    }
+
+    func testLocalTimeAsTheRadioComputesIt() throws {
+        let ny = try XCTUnwrap(PosixTimeZone.parse("EST5EDT,M3.2.0,M11.1.0"))
+        XCTAssertEqual(ny.stdOffsetS, -18000)
+        XCTAssertEqual(ny.dstOffsetS, -14400)
+        // 2026: daylight time from 8 March 07:00 UTC to 1 November 06:00 UTC.
+        let start: Int64 = 1_772_953_200
+        let end: Int64 = 1_793_512_800
+        XCTAssertFalse(ny.local(utc: start - 1).dst)
+        XCTAssertTrue(ny.local(utc: start).dst)
+        XCTAssertTrue(ny.local(utc: end - 1).dst)
+        XCTAssertFalse(ny.local(utc: end).dst)
+        XCTAssertEqual(ny.local(utc: start).seconds, start - 14400)
+
+        // Southern hemisphere: the rules wrap the new year.
+        let sydney = try XCTUnwrap(PosixTimeZone.parse("AEST-10AEDT,M10.1.0,M4.1.0/3"))
+        XCTAssertTrue(sydney.local(utc: 1_767_225_600).dst, "1 January 2026")
+        XCTAssertFalse(sydney.local(utc: 1_782_864_000).dst, "1 July 2026")
+
+        let fixed = try XCTUnwrap(PosixTimeZone.parse("<+0530>-5:30"))
+        XCTAssertEqual(fixed.local(utc: 0).seconds, 19800)
+        XCTAssertNil(PosixTimeZone.parse("EST5EDT"))
     }
 
     func testEventTableStagedWrite() throws {

@@ -22,24 +22,28 @@ Done when CI builds the app and passes its unit and UI tests on a macOS runner, 
 
 Unit tests:
 
-- [ ] The county table converts names to SAME codes and back, including territories
-- [ ] POSIX TZ strings generated for at least 10 zones (U.S. zones, Arizona, Hawaii, a southern-hemisphere zone, Europe/London) match `TimeZone` offsets every 15 minutes across 2026–2028, checked through `GattModel`'s TZ parser
-- [ ] Every settings screen round-trips through the fake link
-- [ ] A rejected write shows the mapped error and the screen reverts to the radio's values
-- [ ] Status and Alert log notifications update the screens
+- [x] The county table converts names to SAME codes and back, including territories
+- [x] POSIX TZ strings generated for at least 10 zones (U.S. zones, Arizona, Hawaii, a southern-hemisphere zone, Europe/London) match `TimeZone` offsets every 15 minutes across 2026–2028, checked through `GattModel`'s TZ parser
+- [x] Every settings screen round-trips through the fake link
+- [x] A rejected write shows the mapped error and the screen reverts to the radio's values
+- [x] Status and Alert log notifications update the screens
 
 UI tests on the simulator with the fake link:
 
-- [ ] First run: pair, choose counties, see them on the home screen
-- [ ] Travel mode with a mocked location writes the right travel counties
-- [ ] Factory reset waits for confirmation and shows the result
+- [x] First run: pair, choose counties, see them on the home screen
+- [x] Travel mode with a mocked location writes the right travel counties
+- [x] Factory reset waits for confirmation and shows the result
 
-Manual on your iPhone with the Mac mock (`swift run MockPeripheral`):
+Manual on your iPhone with the Mac mock (`swift run MockPeripheral --open`):
 
-- [ ] Pairs through the iOS prompt; settings writes appear in the mock's state
-- [ ] `a TOR <code>` in the mock shows up in the alert log; `b` and `s` update the home screen
-- [ ] Test alert and factory reset (confirm with `y`, cancel with `n`) behave as on the radio
-- [ ] Forgetting the mock's bond produces the stale-bond guidance, and re-pairing works
+- [x] Connects; settings writes appear in the mock's state
+- [x] `a TOR <code>` in the mock shows up in the alert log; `b` and `s` update the home screen
+- [x] Test alert and factory reset (confirm with `y`, cancel with `n`) behave as on the radio
+
+iOS doesn't pair with the Mac mock: with encryption required, macOS answers Insufficient Encryption (ATT error 15) and iOS reports it to the app without starting pairing (the radio answers Insufficient Authentication, which makes iOS pair). So the mock runs open, and these two checks wait for the XIAO in firmware milestone 4. Until then the radio's side is covered by `tests/bsim/ble` and the app's by the fake link's tests.
+
+- [ ] Pairs through the iOS prompt with the radio's passkey
+- [ ] Forgetting the radio's bond produces the stale-bond guidance, and re-pairing works
 
 ## Out of scope
 

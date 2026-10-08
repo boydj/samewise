@@ -10,14 +10,18 @@ import CoreBluetooth
 final class Peripheral: NSObject, CBPeripheralManagerDelegate {
     let document: GattDocument
     let radio: RadioState
+    /// Require an encrypted link, as the radio does. --open turns it off:
+    /// iOS doesn't pair with a Mac peripheral (see README.md).
+    let encrypted: Bool
     var manager: CBPeripheralManager!
     var characteristics: [String: CBMutableCharacteristic] = [:]
     var names: [CBUUID: String] = [:]
     var backlog: [(CBMutableCharacteristic, Data)] = []
 
-    init(document: GattDocument, radio: RadioState) {
+    init(document: GattDocument, radio: RadioState, encrypted: Bool) {
         self.document = document
         self.radio = radio
+        self.encrypted = encrypted
         super.init()
         radio.send = { [weak self] name, bytes in self?.update(name, bytes) }
         manager = CBPeripheralManager(delegate: self, queue: nil)
@@ -31,22 +35,22 @@ final class Peripheral: NSObject, CBPeripheralManagerDelegate {
         let service = CBMutableService(type: CBUUID(string: document.service.uuid), primary: true)
         var list: [CBMutableCharacteristic] = []
         for c in document.characteristics {
-            // Encryption required everywhere, so the iPhone pairs as with the radio.
+            // Encryption required everywhere, as on the radio, unless --open.
             var properties: CBCharacteristicProperties = []
             var permissions: CBAttributePermissions = []
             if c.readable {
                 properties.insert(.read)
-                permissions.insert(.readEncryptionRequired)
+                permissions.insert(encrypted ? .readEncryptionRequired : .readable)
             }
             if c.writable {
                 properties.insert(.write)
-                permissions.insert(.writeEncryptionRequired)
+                permissions.insert(encrypted ? .writeEncryptionRequired : .writeable)
             }
             if c.notifies {
-                properties.insert(.notifyEncryptionRequired)
+                properties.insert(encrypted ? .notifyEncryptionRequired : .notify)
             }
             if c.indicates {
-                properties.insert(.indicateEncryptionRequired)
+                properties.insert(encrypted ? .indicateEncryptionRequired : .indicate)
             }
             let ch = CBMutableCharacteristic(type: CBUUID(string: c.uuid), properties: properties,
                                              value: nil, permissions: permissions)
@@ -67,7 +71,8 @@ final class Peripheral: NSObject, CBPeripheralManagerDelegate {
             CBAdvertisementDataLocalNameKey: "WX Radio mock",
             CBAdvertisementDataServiceUUIDsKey: [service.uuid],
         ])
-        print("Advertising \(document.service.uuid) with \(document.characteristics.count) characteristics")
+        print("Advertising \(document.service.uuid) with \(document.characteristics.count) characteristics"
+              + (encrypted ? ", encryption required" : ", open (no pairing)"))
     }
 
     func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveRead request: CBATTRequest) {
@@ -201,8 +206,9 @@ func handle(_ line: String, _ radio: RadioState) {
     }
 }
 
-let path = CommandLine.arguments.count > 1 ? URL(fileURLWithPath: CommandLine.arguments[1])
-                                           : GattDocument.repositoryURL
+let args = CommandLine.arguments.dropFirst()
+let openLink = args.contains("--open")
+let path = args.first(where: { !$0.hasPrefix("--") }).map { URL(fileURLWithPath: $0) } ?? GattDocument.bundledURL
 let document: GattDocument
 do {
     document = try GattDocument.load(from: path)
@@ -211,7 +217,7 @@ do {
     exit(1)
 }
 let radio = RadioState(document: document)
-let peripheral = Peripheral(document: document, radio: radio)
+let peripheral = Peripheral(document: document, radio: radio, encrypted: !openLink)
 print(help)
 DispatchQueue.global().async {
     while let line = readLine() {

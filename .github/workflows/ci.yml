@@ -132,21 +132,105 @@ jobs:
           path: samewise/bsim.log
           if-no-files-found: ignore
 
-  mock-peripheral:
-    # The iPhone app's stand-in for the radio: builds against CoreBluetooth
-    # and checks the model against docs/gatt.json.
+  swift:
+    # The Swift packages: GattModel (checked against docs/gatt.json),
+    # SamewiseKit (the app's logic, with CoreBluetooth on macOS) and the
+    # iPhone app's stand-in for the radio, the mock peripheral.
     runs-on: macos-15
-    defaults:
-      run:
-        working-directory: tools/mock-peripheral
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build
+      - name: GattModel tests
+        working-directory: swift/GattModel
+        run: swift test
+
+      - name: SamewiseKit tests
+        working-directory: swift/SamewiseKit
+        run: swift test
+
+      - name: Build the mock peripheral
+        working-directory: tools/mock-peripheral
         run: swift build
 
-      - name: Test
-        run: swift test
+  ios:
+    # The iPhone app (app milestone 1): generate the project with XcodeGen,
+    # then build it and run its unit and UI tests on a simulator, where it
+    # uses the fake radio.
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios/Samewise
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          xcodebuild -version
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
+          print(next(d["udid"] for r in ios for d in runtimes[r] if d["name"].startswith("iPhone")))')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: >-
+          xcodebuild test -project Samewise.xcodeproj -scheme Samewise
+          -destination "id=${{ steps.sim.outputs.udid }}"
+          -resultBundlePath "$RUNNER_TEMP/Samewise.xcresult"
+          CODE_SIGNING_ALLOWED=NO -quiet
+
+      - name: Test summary
+        if: always()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/Samewise.xcresult" | tee summary.json
+          python3 -c '
+          import json
+          s = json.load(open("summary.json"))
+          print("| Result | Passed | Failed | Skipped |\n| --- | --- | --- | --- |")
+          print("| {} | {} | {} | {} |".format(s["result"], s["passedTests"], s["failedTests"], s["skippedTests"]))
+          for f in s.get("testFailures", []):
+              print("\n**{}**\n\n```\n{}\n```".format(f["testName"], f["failureText"][:20000]))
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Accessibility audit findings (report-only)
+        if: always()
+        run: |
+          xcrun xcresulttool get test-results test-details \
+            --test-id "AccessibilityUITests/testEveryScreenPassesTheAccessibilityAudit()" \
+            --path "$RUNNER_TEMP/Samewise.xcresult" > a11y.json || true
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          def strings(x):
+              if isinstance(x, dict):
+                  for v in x.values():
+                      yield from strings(v)
+              elif isinstance(x, list):
+                  for v in x:
+                      yield from strings(v)
+              elif isinstance(x, str):
+                  yield x
+          try:
+              found = sorted({s for s in strings(json.load(open("a11y.json"))) if "A11Y:" in s})
+          except Exception as e:
+              found = [f"(couldn't read the audit results: {e})"]
+          print("\n### Accessibility audit (report-only)\n")
+          print("\n".join(f"- {f[f.index('A11Y:') + 5:].strip() if 'A11Y:' in f else f}" for f in found) or "No findings.")
+          PY
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: ${{ runner.temp }}/Samewise.xcresult
+          if-no-files-found: ignore
 
   xiao:
     # The XIAO nRF52840 image (milestone 3.5): size against the MCUboot
@@ -255,3 +339,38 @@ jobs:
             samewise/native.log
             samewise/renode-out
           if-no-files-found: ignore
+
+  counties:
+    # The app's county table comes from the U.S. Census Bureau FIPS lists,
+    # which the cloud build environment can't reach. On a branch push where
+    # the table is missing, CI builds it with tools/counties/build_counties.py,
+    # tests it and commits it back to the branch; otherwise it does nothing.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the county table if it's missing
+        run: |
+          out=swift/SamewiseKit/Sources/SamewiseKit/Resources/counties.txt
+          if [ -f "$out" ]; then
+            echo "The county table is already committed."
+            exit 0
+          fi
+          python3 tools/counties/build_counties.py
+          python3 -m unittest -v tools.counties.test_build_counties
+          head -n 6 "$out" >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$out"
+          git commit -m "Add the county table from the Census FIPS lists" \
+            -m "Built by CI with tools/counties/build_counties.py: the cloud build environment can't reach census.gov."
+          git push

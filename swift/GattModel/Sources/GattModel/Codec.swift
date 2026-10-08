@@ -1,7 +1,7 @@
 import Foundation
 
 /// ATT errors the radio returns (docs/gatt.json "errors", plus two standard ones).
-public enum AttError: Error, Equatable, CaseIterable {
+public enum AttError: Error, Equatable, CaseIterable, Sendable {
     case length, value, schema, storage, sequence, busy, index
     case readNotPermitted, writeNotPermitted
 
@@ -49,11 +49,11 @@ public enum Codec {
     public static let eventClasses: UInt8 = 5
     public static let statusLength = 20
 
-    public enum Band: UInt8 {
+    public enum Band: UInt8, Sendable {
         case fm = 0, am = 1, wb = 2
     }
 
-    public struct Preset: Equatable {
+    public struct Preset: Equatable, Sendable {
         public var band: UInt8
         public var khz: UInt32
 
@@ -63,7 +63,7 @@ public enum Codec {
         }
     }
 
-    public struct Event: Equatable {
+    public struct Event: Equatable, Sendable {
         public var code: String
         public var eventClass: UInt8
         public var name: String
@@ -75,7 +75,7 @@ public enum Codec {
         }
     }
 
-    public enum EventTableWrite: Equatable {
+    public enum EventTableWrite: Equatable, Sendable {
         case select(index: UInt8)
         case begin(version: UInt16, count: UInt8)
         case entry(index: UInt8, event: Event)
@@ -83,15 +83,15 @@ public enum Codec {
         case abort
     }
 
-    public enum Command: UInt8 {
+    public enum Command: UInt8, Sendable {
         case testAlert = 1, clearLog = 2, factoryReset = 3
     }
 
-    public enum ControlResult: UInt8 {
+    public enum ControlResult: UInt8, Sendable {
         case done = 0, awaitingConfirmation = 1, cancelled = 2, rejected = 3
     }
 
-    public struct Status: Equatable {
+    public struct Status: Equatable, Sendable {
         public var batteryPercent: UInt8 = 100
         public var hoursLeft: UInt16 = 0xFFFF
         public var snrDb: Int8 = 25
@@ -104,7 +104,7 @@ public enum Codec {
         public init() {}
     }
 
-    public struct LogEntry: Equatable {
+    public struct LogEntry: Equatable, Sendable {
         public var receivedUtc: Int64
         public var outcome: UInt8
         public var flags: UInt8
@@ -319,7 +319,54 @@ public enum Codec {
         [schema] + le16(version) + [count, index] + encodeEntry(event)
     }
 
+    /// An event table read: one entry, with the table's version and size.
+    public struct EventTableRead: Equatable, Sendable {
+        public var version: UInt16
+        public var count: UInt8
+        public var index: UInt8
+        public var event: Event
+
+        public init(version: UInt16, count: UInt8, index: UInt8, event: Event) {
+            self.version = version
+            self.count = count
+            self.index = index
+            self.event = event
+        }
+    }
+
+    public static func decodeEventTableRead(_ b: [UInt8]) throws -> EventTableRead {
+        try head(b, min: 5)
+        let event = try decodeEntry(b[5...])
+        guard b[4] < b[3] else { throw AttError.value }
+        return EventTableRead(version: get16(b, 1), count: b[3], index: b[4], event: event)
+    }
+
     // MARK: - Alert log
+
+    /// An alert log read or notification: one entry, with the log's size.
+    public struct LogRead: Equatable, Sendable {
+        public var count: UInt8
+        public var index: UInt8
+        public var entry: LogEntry
+
+        public init(count: UInt8, index: UInt8, entry: LogEntry) {
+            self.count = count
+            self.index = index
+            self.entry = entry
+        }
+    }
+
+    public static func decodeLogEntry(_ b: [UInt8]) throws -> LogRead {
+        try head(b, min: 14)
+        let len = Int(b[13])
+        guard b.count == 14 + len else { throw AttError.length }
+        guard b[2] < b[1], printable(b[14...]) else { throw AttError.value }
+        let entry = LogEntry(receivedUtc: get64(b, 3), outcome: b[11], flags: b[12],
+                             raw: String(decoding: b[14...], as: UTF8.self))
+        return LogRead(count: b[1], index: b[2], entry: entry)
+    }
+
+    public static func encodeLogSelect(_ index: UInt8) -> [UInt8] { [schema, index] }
 
     public static func decodeLogSelect(_ b: [UInt8]) throws -> UInt8 {
         try head(b, min: 2)
@@ -342,6 +389,13 @@ public enum Codec {
     }
 
     public static func encodeCommand(_ c: Command) -> [UInt8] { [schema, c.rawValue] }
+
+    public static func decodeControlIndication(_ b: [UInt8]) throws -> (Command, ControlResult) {
+        try head(b, min: 3)
+        guard b.count == 3 else { throw AttError.length }
+        guard let c = Command(rawValue: b[1]), let r = ControlResult(rawValue: b[2]) else { throw AttError.value }
+        return (c, r)
+    }
 
     public static func encodeControlIndication(_ c: Command, _ r: ControlResult) -> [UInt8] {
         [schema, c.rawValue, r.rawValue]
