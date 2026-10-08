@@ -3,7 +3,7 @@
 Pocket AM/FM/NOAA weather radio with SAME alerts: Raytac MDBT50Q-1MV2 (nRF52840) plus a Skyworks Si4743 tuner, on Zephyr via the nRF Connect SDK.
 
 - Spec (source of truth): `docs/firmware-spec.md`. Living version: https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac
-- Current task: `docs/MILESTONE-APP-1.md`, the iPhone app (firmware milestone 4 waits for the XIAO)
+- Current task: `docs/MILESTONE-3.6.md`, screens and drivers before hardware (firmware milestone 4 waits for the XIAO)
 
 ## Priorities
 

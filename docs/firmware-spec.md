@@ -184,15 +184,15 @@ Test audio:
 - **Negative audio.** Voice-only weather broadcasts, FM music, silence, the 1050 Hz NOAA Weather Radio alarm tone alone, and the EAS attention signal (853 and 960 Hz together, 11.31(a)(2)). Target: zero false alerts across 24 hours of it.
 - Track decode rate against SNR; set pass thresholds after the first recordings. SNR is AFSK power over white-noise power across the full band (0 to 5.2 kHz at 10,416.67 Hz sampling), so 0 dB is about 10 dB Eb/N0. The table lives in `docs/decoder-snr.md`.
 
-Scenario tests on `native_sim`, run with accelerated time:
+Scenario tests on `native_sim`, run with accelerated time (`tests/scenario`):
 
-- [ ] A week of standby with a scripted discharge: warnings at 20% and 5%, shutdown at 3.3 V
-- [ ] Signal drops for 10 minutes: NO SIGNAL appears and chirps hourly
-- [ ] 8 days with no weekly test: warning appears
-- [ ] Same alert re-broadcast: one alert, one log entry
-- [ ] Alert, then headphones plugged in: buzzer stops, audio plays, ends on NNNN
-- [ ] Key lock on during an alert: only silence works
-- [ ] Injected decoder hang: watchdog resets, standby resumes
+- [x] A week of standby with a scripted discharge: warnings at 20% and 5%, shutdown at 3.3 V (`test_week_of_standby_battery_runs_fast`)
+- [x] Signal drops for 10 minutes: NO SIGNAL appears and chirps hourly (`test_signal_drop_no_signal_hourly_chirps_recovery`)
+- [x] 8 days with no weekly test: warning appears (`test_8_days_without_rwt_then_rwt_clears_and_sets_clock`)
+- [x] Same alert re-broadcast: one alert, one log entry (`test_rebroadcast_one_alert_one_log_entry`)
+- [x] Alert, then headphones plugged in: buzzer stops, audio plays, ends on NNNN (`test_alert_then_headphones_audio_ends_on_nnnn`)
+- [x] Key lock on during an alert: only silence works (`test_key_lock_during_alert`)
+- [x] Injected decoder hang: watchdog resets, standby resumes (`test_decoder_stall_resets_and_next_header_decodes`)
 
 Bluetooth tests on `nrf52_bsim`:
 
