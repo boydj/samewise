@@ -44,6 +44,12 @@ config WX_BLE_ZEPHYR
 	  ages keys on use). Leave BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING off: it
 	  would make that the oldest paired instead.
 
+config WX_GFX
+	bool "Drawing and bitmap fonts"
+	help
+	  services/gfx: rectangles, lines and VT323 bitmap text in a 1-bit
+	  framebuffer. Plain C99.
+
 config WX_POWER
 	bool "Power manager"
 	help
@@ -54,6 +60,7 @@ config WX_APP_LOGIC
 	select WX_SAME
 	select WX_MATCH
 	select WX_BLE_SERVICE
+	select WX_GFX
 
 menu "Fakes"
 	comment "Stand-ins for interfaces; those reading host files need native_sim."
@@ -90,6 +97,9 @@ config WX_FAKE_TUNER
 config WX_FAKE_BATTERY
 	bool "battery fake: scripted discharge curve, records ship mode"
 
+config WX_FAKE_DISPLAY
+	bool "display fake: framebuffer in RAM, flushes counted and holdable"
+
 config WX_FAKE_HOST_FILE
 	bool "Host file access for fakes and tests"
 	depends on ARCH_POSIX
@@ -125,6 +135,27 @@ config WX_DRV_WATCHDOG
 config WX_DRV_STORAGE
 	bool "storage on Zephyr settings"
 	depends on SETTINGS
+
+config WX_DRV_BATTERY
+	bool "battery on the MAX17048 fuel gauge and BQ25180 charger"
+	depends on FUEL_GAUGE && CHARGER && I2C
+	help
+	  hal/battery.h on Zephyr's maxim,max17048 and ti,bq25180 drivers, plus
+	  the charger's temperature status and shutdown mode by register.
+
+config WX_DRV_TUNER
+	bool "tuner on the Si4743 over I2C"
+	depends on I2C
+	help
+	  hal/tuner.h on a skyworks,si4743 node: AN332's commands for FM, AM
+	  and the weather band, signal status, mute and RDS radio text.
+
+config WX_DRV_DISPLAY
+	bool "display on Zephyr's display API (zephyr,display)"
+	depends on DISPLAY
+	help
+	  hal/display.h on the chosen display: the Sharp memory LCD through
+	  sharp,ls0xx on the board, SDL on native_sim. Sends changed rows only.
 
 config WX_AUDIO_CLIP
 	bool "audio_in from a SAME clip compiled into flash"

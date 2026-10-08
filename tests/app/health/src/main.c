@@ -295,6 +295,54 @@ ZTEST(health, test_charging_clears_battery_warnings)
 	zassert_equal(dev.ui.warnings & UI_WARN_BATTERY_LOW, 0);
 }
 
+ZTEST(health, test_hours_left_from_the_gauge_or_the_budget)
+{
+	struct hal_battery_status b = {.soc_percent = 50, .charge = HAL_BATTERY_DISCHARGING,
+				       .hours_left = HAL_BATTERY_HOURS_UNKNOWN};
+
+	zassert_equal(health_hours_left(&b), UI_STANDBY_HOURS_FULL / 2, "no rate yet: the budget");
+	b.hours_left = 40;
+	zassert_equal(health_hours_left(&b), 40, "the gauge's time to empty");
+	b.charge = HAL_BATTERY_CHARGING;
+	zassert_equal(health_hours_left(&b), UI_STANDBY_HOURS_FULL / 2, "charging: the budget");
+	b.charge = HAL_BATTERY_DISCHARGING;
+	b.hours_left = HAL_BATTERY_HOURS_UNKNOWN;
+	b.soc_percent = 0;
+	zassert_equal(health_hours_left(&b), 0);
+	b.soc_percent = 100;
+	zassert_equal(health_hours_left(&b), UI_STANDBY_HOURS_FULL);
+
+	/* And on the model, with each battery poll. */
+	battery_fake_set(25, 3700, HAL_BATTERY_DISCHARGING);
+	battery_fake_set_hours(31);
+	run(2 * MINUTE);
+	zassert_equal(dev.ui.hours_left, 31);
+	zassert_false(dev.ui.charging);
+	battery_fake_set(26, 3900, HAL_BATTERY_CHARGING);
+	run(2 * MINUTE);
+	zassert_true(dev.ui.charging);
+	zassert_equal(dev.ui.hours_left, (26 * UI_STANDBY_HOURS_FULL + 50) / 100);
+}
+
+ZTEST(health, test_signal_bars_and_tuner_fields)
+{
+	int16_t min = cfg.min_snr_db;
+
+	zassert_equal(health_signal_bars(min - 1, min), 0, "below the no-signal threshold");
+	zassert_equal(health_signal_bars(min, min), 1);
+	zassert_equal(health_signal_bars(min + HEALTH_BAR_STEP_DB - 1, min), 1);
+	zassert_equal(health_signal_bars(min + HEALTH_BAR_STEP_DB, min), 2);
+	zassert_equal(health_signal_bars(min + 3 * HEALTH_BAR_STEP_DB, min), UI_SIGNAL_BARS);
+	zassert_equal(health_signal_bars(127, min), UI_SIGNAL_BARS, "never more than the icon has");
+	zassert_equal(health_signal_bars(-128, min), 0);
+
+	tuner_fake_set_signal(40, min + HEALTH_BAR_STEP_DB);
+	run(3 * SECOND);
+	zassert_equal(dev.ui.signal_bars, 2);
+	zassert_equal(dev.ui.freq_khz, 162475, "the tuned frequency, from the tuner");
+	zassert_equal(dev.ui.band, HAL_TUNER_BAND_WB);
+}
+
 ZTEST(health, test_chirps_never_over_an_alert)
 {
 	struct same_header h;

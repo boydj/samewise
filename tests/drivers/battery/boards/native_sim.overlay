@@ -1,0 +1,15 @@
+/* The board's fuel gauge and charger on native_sim's emulated I2C bus. */
+&i2c0 {
+	max17048: max17048@36 {
+		compatible = "maxim,max17048";
+		reg = <0x36>;
+		status = "okay";
+	};
+
+	bq25180: bq25180@6a {
+		compatible = "ti,bq25180";
+		reg = <0x6a>;
+		constant-charge-current-max-microamp = <500000>;
+		status = "okay";
+	};
+};

@@ -98,6 +98,20 @@ void ble_poll_status(struct ble *b)
 	}
 }
 
+uint16_t ble_screen_seconds(const struct ble *b, int64_t now_ms)
+{
+	const struct hal_clock_timer *t = b->confirm != BLE_SCREEN_NONE ? &b->confirm_timer
+					  : b->window != BLE_WINDOW_NONE ? &b->window_timer
+									 : NULL;
+	int64_t left;
+
+	if (t == NULL || !t->active || t->due_ms <= now_ms) {
+		return 0;
+	}
+	left = (t->due_ms - now_ms + 999) / 1000;
+	return (uint16_t)(left > UINT16_MAX ? UINT16_MAX : left);
+}
+
 void ble_log_added(struct ble *b)
 {
 	union ble_value v;

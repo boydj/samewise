@@ -37,14 +37,26 @@ struct hal_tuner_status {
 /** Power the tuner up (on) or down; powering down loses the tuned station. */
 int hal_tuner_power(bool on);
 
-/** Select a band. Mutes audio until the next hal_tuner_tune(). */
+/**
+ * Select a band. A different band restarts the tuner (about 110 ms on the
+ * Si4743) and mutes audio until the next hal_tuner_tune(); the band it is
+ * already on changes nothing.
+ */
 int hal_tuner_set_band(enum hal_tuner_band band);
 
-/** Tune to freq_khz in the current band; -EINVAL if out of range. */
+/**
+ * Tune to freq_khz in the current band; -EINVAL if out of range or off the
+ * band's grid (FM 10 kHz, WB 2.5 kHz). Returns once the tuner has accepted
+ * it, not when the tune completes (up to 250 ms on WB): status reads report
+ * the new frequency meanwhile.
+ */
 int hal_tuner_tune(uint32_t freq_khz);
 
 /**
- * Seek up or down from the current frequency to the next valid station.
+ * Seek up or down from the current frequency to the next valid station,
+ * wrapping at the band edges. Blocks until found or back where it started
+ * (seconds across a whole band): for the listening UI, never the alert
+ * path. -ENOTSUP on the weather band, which has no seek.
  *
  * @param up        seek direction
  * @param found_khz set to the station found
@@ -53,7 +65,7 @@ int hal_tuner_tune(uint32_t freq_khz);
  */
 int hal_tuner_seek(bool up, uint32_t *found_khz);
 
-/** Read signal strength and SNR. Never blocks for longer than one I2C transfer. */
+/** Read signal strength and SNR. Takes a few short I2C transfers (under a millisecond). */
 int hal_tuner_get_status(struct hal_tuner_status *status);
 
 /** Mute or unmute the tuner's analog audio output. */

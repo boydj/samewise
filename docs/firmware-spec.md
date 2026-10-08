@@ -36,13 +36,13 @@ Ten interfaces separate the application from the hardware; each has a real drive
 
 | Interface | Responsibilities | Real driver | Fake for native_sim |
 | --- | --- | --- | --- |
-| `tuner` | Power, band and frequency, seek, signal strength and SNR, mute, RDS text | Si4743 over I2C | Scripted signal-strength timeline; records every tune and mute call |
+| `tuner` | Power, band and frequency, seek, signal strength and SNR, mute, RDS text | Si4743 over I2C (`drivers/tuner_si4743.c`, AN332 Rev. 1.2); needs a 32.768 kHz reference on RCLK | Scripted signal-strength timeline; records every tune and mute call |
 | `audio_in` | Continuous mono audio in fixed blocks for the decoder | SAADC with EasyDMA, timer-triggered, 4× gain, differential | Streams WAV files: RTL-SDR recordings and synthetic SAME bursts |
 | `audio_out` | Headphone amp on and off, alert audio routing | TPA6132A2 enable GPIO | Logs state changes |
 | `alert_out` | Buzzer pattern, vibration pattern, LED | PAM8904E enable, MOSFET GPIO, LED GPIO | Timestamped event log |
-| `display` | 144×168 1-bit framebuffer, flush, backlight | Sharp memory LCD over SPI, polarity-toggle timer | Desktop window at real resolution (Zephyr SDL display driver) |
+| `display` | 144×168 1-bit framebuffer, flush, backlight | Sharp memory LCD over SPI through Zephyr's `sharp,ls0xx` driver, which also toggles VCOM (`drivers/display_zephyr.c`, changed rows only) | Framebuffer in RAM, flushes counted (`fakes/display_fake.c`); the SDL window through the same driver |
 | `input` | Press, long press and combo events; lock switch; headphone detect | GPIO with debounce | Keyboard in the SDL window, or a scripted event list |
-| `battery` | State of charge, voltage, charge status, temperature fault | MAX17048 and BQ25180 over I2C | Scripted discharge and charge curves |
+| `battery` | State of charge, voltage, charge status, temperature fault, time to empty | MAX17048 and BQ25180 over I2C on Zephyr's drivers, plus the BQ25180's TS status and shutdown mode by register (`drivers/battery_zephyr.c`) | Scripted discharge and charge curves |
 | `clock` | UTC time, set and adjust, timers | nRF52 RTC on the 32.768 kHz crystal | Simulated time that can run faster than real time |
 | `storage` | Settings and alert log as key-value records | Zephyr settings on flash | Settings in a local file |
 | `watchdog` | Start, feed, reset reason | nRF52 hardware watchdog | Records feeds; a starved watchdog triggers a simulated reset that restarts the application |
@@ -83,7 +83,7 @@ Behaviour of the characteristics:
 
 - Characteristics answer only an LE Secure Connections authenticated link.
 - Writes are validated completely before anything changes; a rejected write returns an ATT error from `docs/gatt.json` and changes nothing. A storage failure returns its own error: the value is in effect until the next restart.
-- Every accepted settings write notifies Status. Status also notifies when battery percent, health flags, lock or channel change, or SNR or RSSI moves 3 dB from the last notified value. Hours left reads 0xFFFF until the power manager estimates it.
+- Every accepted settings write notifies Status. Status also notifies when battery percent, health flags, lock or channel change, or SNR or RSSI moves 3 dB from the last notified value. Hours left is the MAX17048's time to empty at its measured discharge rate; until the gauge has a rate (just after boot) and while charging, it is charge × 132 hours (5.5 days of standby on a full cell). The screens show the same figure.
 - Event table writes are staged: begin (version, count), entries in index order, commit. An empty table is refused, since it would silence every alert.
 - Alert log notifies its newest entry when one is stored.
 - Control: a test alert runs the warning patterns and the alert screen for 2 minutes, shows Practice/Demo Warning and is logged as a test; it is refused unless the radio is in Standby, so it can never mask a real alert. Results arrive as indications.
@@ -128,6 +128,28 @@ Alert behaviour:
 - The alert log keeps the last 16 non-duplicate headers that matched the counties, plus every test, each with its received time and outcome (alerted, filtered, unknown event, expired). Entries wait in RAM and are written to flash at low priority, so the alert path never waits on flash.
 - Vibration uses distinct patterns for warnings and watches, so the class is felt without looking.
 
+## Screens
+
+The display is the Sharp memory LCD, 144×168 pixels, 1 bit. Every screen is drawn from the screen model (`app/ui_model.h`) by `app/screens.c` in VT323, the pixel font of the design (SIL Open Font License): 17 px for small text, 25 px for headings and 25 px at double scale for big digits. Renders of every screen are in `docs/images/screens/`, and `tests/display/screens` holds each one to a golden image.
+
+The screen shown follows the model's precedence: ALERTS OFF, alert, Bluetooth, RESTARTED, warning, listening, standby.
+
+| Screen | Shows |
+| --- | --- |
+| Standby | WX tag, BT when a phone is connected, battery time left and gauge; the weather frequency, MONITORING; county count (or ALL AREAS with no counties, SAME or TRAVEL), filter, last alert (event and time today, days ago before that, NONE) |
+| Listening | Band, ST for FM stereo, signal bars, battery; frequency with MHz or kHz, RDS radio text, presets P1–P4 around the current one, volume |
+| Alert | ALERT header (TEST for a test alert) with +N for more alerts active; the event name on up to two lines (three, smaller, for long names); UNTIL hh:mm local, or FOR n MIN while the clock is unset; counties matched; then PLUG IN TO LISTEN / ANY KEY SILENCES, PLAYING BROADCAST / ANY KEY STOPS, or SILENCED |
+| Warning | The most urgent of battery critical, no signal, tuner fault, no weekly test and battery low, with +N for the others. No signal: WX frequency, ALERTS AT RISK, MOVE NEAR A WINDOW OR CHECK LANYARD. Tuner fault: RADIO CHIP NOT ANSWERING. No weekly test: NO WEEKLY TEST IN 8 DAYS. Battery: percent, about how long, ALERTS STOP AT 0%, PLUG IN USB-C |
+| ALERTS OFF | BATTERY EMPTY, RADIO IS OFF, PLUG IN USB-C TO TURN BACK ON |
+| RESTARTED | RECOVERED FROM A FAULT, ALERTS ARE ON, NOTHING TO DO |
+| Bluetooth | Connect window (paired phones only), pairing window and passkey, each with seconds left; REPLACE PHONE? and FACTORY RESET? confirmations (HOLD STBY to confirm, any other key cancels) |
+
+Text that doesn't fit is cut, never wrapped off the screen; nothing is drawn in the outer two columns except the header bar.
+
+Signal bars: none below the no-signal SNR threshold, then one more for every 5 dB, up to four. Battery time left shows as days with a decimal from 48 hours up (6.2d), hours below (14h), CHG while charging.
+
+Drawing never runs on the alert path. Once a second at low priority the UI step copies the screen model under the app lock, then draws and flushes without it. The panel changes at once when the screen changes or anything changes off standby; in standby at most once a minute. The backlight runs 5 seconds after each key press and each new alert.
+
 ## Health monitoring
 
 A supervisor thread owns every check that could silently stop alerts, and only it feeds the hardware watchdog. The nRF52 watchdog runs during sleep and can't be stopped by firmware once started.
@@ -140,7 +162,7 @@ A supervisor thread owns every check that could silently stop alerts, and only i
 | No weekly test | No valid RWT decoded in 8 days | Same warning as no signal, with its own reason line |
 | Battery low | 20% state of charge | Chirp and screen warning |
 | Battery critical | 5% state of charge | Chirp every 30 minutes |
-| Battery empty | 3.3 V cell voltage | Final long beep, ALERTS OFF screen, charger ship mode |
+| Battery empty | 3.3 V cell voltage | Final long beep, ALERTS OFF screen, charger off: the BQ25180's shutdown mode, which only plugging in USB-C wakes (15 nA) |
 
 The weekly-test check is the only end-to-end proof that antenna, tuner and decoder work together, so it is never disabled. Signal-quality thresholds come from bring-up measurements; until then the no-signal threshold is a configuration value (SNR below 10 dB).
 
@@ -163,7 +185,7 @@ Standby dominates the battery at about 22 mA, nearly all of it the tuner receivi
 | Listening | Tuner on AM or FM (FM 26 mA typical), headphone amp | ~30 mA |
 | Alerting | Standby plus buzzer and pulsed vibration | Measure at bring-up; short duration |
 | Bluetooth session | Standby plus 32 MHz crystal and radio | +1–3 mA while connected |
-| Off | Charger ship mode | Microamps |
+| Off | Charger shutdown mode | 15 nA |
 
 At the 4,000 mAh label rating, standby lasts about 180 hours (7.5 days). Real cell capacity and the 3.3 V cutoff bring that to 5–6 days.
 
@@ -184,15 +206,15 @@ Test audio:
 - **Negative audio.** Voice-only weather broadcasts, FM music, silence, the 1050 Hz NOAA Weather Radio alarm tone alone, and the EAS attention signal (853 and 960 Hz together, 11.31(a)(2)). Target: zero false alerts across 24 hours of it.
 - Track decode rate against SNR; set pass thresholds after the first recordings. SNR is AFSK power over white-noise power across the full band (0 to 5.2 kHz at 10,416.67 Hz sampling), so 0 dB is about 10 dB Eb/N0. The table lives in `docs/decoder-snr.md`.
 
-Scenario tests on `native_sim`, run with accelerated time:
+Scenario tests on `native_sim`, run with accelerated time (`tests/scenario`):
 
-- [ ] A week of standby with a scripted discharge: warnings at 20% and 5%, shutdown at 3.3 V
-- [ ] Signal drops for 10 minutes: NO SIGNAL appears and chirps hourly
-- [ ] 8 days with no weekly test: warning appears
-- [ ] Same alert re-broadcast: one alert, one log entry
-- [ ] Alert, then headphones plugged in: buzzer stops, audio plays, ends on NNNN
-- [ ] Key lock on during an alert: only silence works
-- [ ] Injected decoder hang: watchdog resets, standby resumes
+- [x] A week of standby with a scripted discharge: warnings at 20% and 5%, shutdown at 3.3 V (`test_week_of_standby_battery_runs_fast`)
+- [x] Signal drops for 10 minutes: NO SIGNAL appears and chirps hourly (`test_signal_drop_no_signal_hourly_chirps_recovery`)
+- [x] 8 days with no weekly test: warning appears (`test_8_days_without_rwt_then_rwt_clears_and_sets_clock`)
+- [x] Same alert re-broadcast: one alert, one log entry (`test_rebroadcast_one_alert_one_log_entry`)
+- [x] Alert, then headphones plugged in: buzzer stops, audio plays, ends on NNNN (`test_alert_then_headphones_audio_ends_on_nnnn`)
+- [x] Key lock on during an alert: only silence works (`test_key_lock_during_alert`)
+- [x] Injected decoder hang: watchdog resets, standby resumes (`test_decoder_stall_resets_and_next_header_decodes`)
 
 Bluetooth tests on `nrf52_bsim`:
 
@@ -207,6 +229,7 @@ The iPhone app is built against a macOS mock peripheral that implements the same
 - [ ] Is the Si4743's 54–67 mVrms output clean enough at the ADC's 4× gain, or does it need an op-amp?
 - [ ] Does the Raytac module include a 32.768 kHz crystal?
 - [ ] What is the LCD's maximum supply voltage, against the 3.1 V rail?
+- [ ] Where does the Si4743's 32.768 kHz RCLK come from? The Si474x has no crystal oscillator option (AN332, POWER_UP: XOSCEN must be 0), so the board must feed it, from the nRF52's 32.768 kHz crystal or its own oscillator.
 - [ ] Is the nRF52's internal oscillator accurate enough for SAME bit timing without the crystal? Verify on the XIAO.
 - [ ] Which signal-quality thresholds mean no signal? Set from bring-up measurements.
 - [ ] How much current do the buzzer and vibration draw during alerts?

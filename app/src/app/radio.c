@@ -6,6 +6,11 @@
 #include "app/ble_link.h"
 #include "app/clock_sync.h"
 #include "app/radio.h"
+
+#include <string.h>
+
+#include "hal/clock.h"
+#include "hal/display.h"
 #include "hal/audio_in.h"
 #include "hal/input.h"
 #include "hal/tuner.h"
@@ -41,12 +46,19 @@ static void on_input(const struct hal_input_event *e, void *user)
 	struct radio *r = user;
 	enum alert_state before = alert_mgr_state(&r->alerts);
 
+	if (e->type == HAL_INPUT_PRESS || e->type == HAL_INPUT_LONG_PRESS ||
+	    e->type == HAL_INPUT_COMBO) {
+		r->ui.key_presses++;
+	}
+
 	alert_mgr_on_input(&r->alerts, e);
 	if (r->ble.app != NULL &&
 	    (before == ALERT_STATE_STANDBY || before == ALERT_STATE_LISTENING)) {
 		ble_on_input(&r->ble, e);
 	}
 }
+
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 uint32_t radio_weather_khz(uint8_t channel)
 {
@@ -59,10 +71,14 @@ void radio_boot(struct radio *r, const struct health_config *cfg, int64_t firmwa
 
 	r->settings_errors = (uint32_t)settings_restore(&r->settings);
 	r->idle_samples = 0;
+	r->ui_log_seen = UINT32_MAX;
+	r->ui_last_utc = -1;
 	r->trace = NULL;
 	r->ble.app = NULL;
 	power_init();
 	ui_model_init(&r->ui);
+	ui_render_init(&r->render);
+	r->backlight = false;
 	alert_log_init();
 	clock_sync_init(firmware_epoch_utc);
 	same_init(&r->decoder, on_header, on_eom, r);
@@ -109,6 +125,87 @@ void radio_idle_audio(struct radio *r, uint32_t n)
 	r->idle_samples += n;
 	health_note_audio(&r->health);
 	health_note_decoder(&r->health, same_get_stats(&r->decoder)->samples + r->idle_samples);
+}
+
+static uint8_t preset_index(const struct settings *s, uint8_t band, uint32_t khz)
+{
+	static const uint8_t to_codec[] = {
+		[HAL_TUNER_BAND_FM] = CODEC_BAND_FM,
+		[HAL_TUNER_BAND_AM] = CODEC_BAND_AM,
+		[HAL_TUNER_BAND_WB] = CODEC_BAND_WB,
+	};
+
+	for (uint8_t i = 0; i < s->preset_count && band < ARRAY_LEN(to_codec); i++) {
+		if (s->presets[i].band == to_codec[band] && s->presets[i].khz == khz) {
+			return (uint8_t)(i + 1U);
+		}
+	}
+	return 0;
+}
+
+static void read_last_alert(struct radio *r)
+{
+	uint32_t appended = alert_log_appended();
+	struct alert_log_entry e;
+
+	if (appended == r->ui_log_seen && r->ui_log_seen != UINT32_MAX) {
+		return;
+	}
+	r->ui_log_seen = appended;
+	r->ui.last_event[0] = '\0';
+	r->ui_last_utc = -1;
+	for (uint32_t i = 0; i < ALERT_LOG_SIZE && alert_log_read(i, &e) == 0; i++) {
+		/* ZCZC-ORG-EEE-...: the event code is characters 9 to 11. */
+		if (e.outcome == ALERT_LOG_ALERTED && strlen(e.raw) >= 12U) {
+			memcpy(r->ui.last_event, &e.raw[9], 3);
+			r->ui.last_event[3] = '\0';
+			r->ui_last_utc = e.received_utc;
+			return;
+		}
+	}
+}
+
+void radio_ui_update(struct radio *r)
+{
+	struct ui_model *ui = &r->ui;
+	const struct county_list *active = settings_active_counties(&r->settings);
+	int64_t utc = hal_clock_utc_s();
+
+	ui->uptime_ms = hal_clock_uptime_ms();
+	ui->local_s = utc >= 0 ? settings_local_time(&r->settings, utc, NULL) : -1;
+	ui->travel = r->settings.mode == SETTINGS_MODE_TRAVEL;
+	ui->county_count = active->count;
+	ui->filter = r->settings.filter;
+	ui->preset = preset_index(&r->settings, ui->band, ui->freq_khz);
+	if (ui->band != HAL_TUNER_BAND_FM || hal_tuner_rds_text(ui->rds, sizeof(ui->rds)) < 0) {
+		ui->rds[0] = '\0';
+	}
+	read_last_alert(r);
+	ui->last_local_s = r->ui_last_utc >= 0 ? settings_local_time(&r->settings, r->ui_last_utc, NULL)
+					       : -1;
+	ui->phone_connected = r->ble.app != NULL && r->ble.connected;
+	ui->ble_seconds = r->ble.app != NULL ? ble_screen_seconds(&r->ble, ui->uptime_ms) : 0U;
+	ui_model_refresh(ui);
+}
+
+void radio_ui_tick(struct radio *r, const struct radio_lock *lk)
+{
+	static struct ui_model snapshot;
+	bool light;
+
+	lk->lock(lk->user);
+	radio_ui_update(r);
+	snapshot = r->ui;
+	lk->unlock(lk->user);
+
+	if (ui_render_frame(&r->render, &snapshot, snapshot.uptime_ms)) {
+		(void)hal_display_flush();
+	}
+	light = ui_render_backlight(&r->render, snapshot.uptime_ms);
+	if (light != r->backlight) {
+		r->backlight = light;
+		(void)hal_display_backlight(light);
+	}
 }
 
 void radio_low_priority(struct radio *r)

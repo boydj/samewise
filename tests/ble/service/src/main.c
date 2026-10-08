@@ -585,7 +585,73 @@ ZTEST(ble_service, test_status_fields)
 	zassert_equal(st.locked, 1);
 	zassert_equal(st.channel, 7, "162.550 MHz");
 	zassert_equal(st.last_rwt_utc, -1, "no weekly test yet");
-	zassert_equal(st.hours_left, 0xFFFF, "not estimated yet");
+	zassert_equal(st.hours_left, UI_STANDBY_HOURS_FULL,
+		      "before the fuel gauge has a rate: full charge x the standby budget");
+
+	battery_fake_set(50, 3800, HAL_BATTERY_DISCHARGING);
+	run_ms(2 * MINUTE);
+	zassert_ok(rd(WX_GATT_CHR_STATUS));
+	zassert_ok(codec_decode_status(buf, n, &st));
+	zassert_equal(st.hours_left, UI_STANDBY_HOURS_FULL / 2);
+
+	battery_fake_set_hours(77);
+	run_ms(2 * MINUTE);
+	zassert_ok(rd(WX_GATT_CHR_STATUS));
+	zassert_ok(codec_decode_status(buf, n, &st));
+	zassert_equal(st.hours_left, 77, "the fuel gauge's time to empty once it has one");
+}
+
+ZTEST(ble_service, test_screen_model_from_settings_log_clock_and_windows)
+{
+	static const char raw[] = "ZCZC-WXR-TOR-048453+0030-2811500-KEWX/NWS-";
+	const struct same_location home[] = {{0, 48, 453}, {0, 48, 29}};
+	const struct codec_preset presets[] = {{CODEC_BAND_FM, 98700}, {CODEC_BAND_WB, 162550}};
+	struct same_header h;
+
+	radio_ui_update(r);
+	zassert_equal(r->ui.local_s, -1, "clock unset");
+	zassert_equal(r->ui.last_event[0], '\0', "nothing logged");
+	zassert_equal(r->ui.county_count, 0, "no counties: every location");
+
+	zassert_ok(hal_clock_set_utc(EPOCH + 86400));
+	zassert_ok(settings_set_counties(&r->settings, SETTINGS_MODE_HOME, home, 2));
+	zassert_ok(settings_set_filter(&r->settings, FILTER_WARNINGS, NULL));
+	zassert_ok(settings_set_presets(&r->settings, presets, 2));
+	zassert_ok(settings_set_tz(&r->settings, "CST6CDT,M3.2.0,M11.1.0"));
+	zassert_ok(same_parse_header(raw, sizeof(raw) - 1U, &h));
+	alert_log_append(&h, EPOCH + 86400 - 600, ALERT_LOG_ALERTED, 0);
+	run_ms(2 * SECOND); /* the log reaches storage, the tuner reports */
+	radio_ui_update(r);
+
+	zassert_equal(r->ui.local_s, settings_local_time(&r->settings, hal_clock_utc_s(), NULL));
+	zassert_equal(r->ui.county_count, 2);
+	zassert_false(r->ui.travel);
+	zassert_equal(r->ui.filter, FILTER_WARNINGS);
+	zassert_equal(r->ui.freq_khz, 162550);
+	zassert_equal(r->ui.preset, 2, "the weather preset matches the tuned channel");
+	zassert_str_equal(r->ui.last_event, "TOR");
+	zassert_equal(r->ui.last_local_s,
+		      settings_local_time(&r->settings, EPOCH + 86400 - 600, NULL));
+	zassert_equal(r->ui.volume, UI_VOLUME_UNKNOWN, "no volume until the radio UI sets one");
+	zassert_false(r->ui.phone_connected);
+
+	zassert_ok(settings_set_mode(&r->settings, SETTINGS_MODE_TRAVEL));
+	radio_ui_update(r);
+	zassert_true(r->ui.travel);
+	zassert_equal(r->ui.county_count, 0, "travel counties: none set");
+
+	/* A connect window counts down on the screen, rounded up. */
+	LONG_BAND();
+	radio_ui_update(r);
+	zassert_equal(r->ui.screen, UI_SCREEN_BLUETOOTH);
+	zassert_equal(r->ui.ble_seconds, BLE_CONNECT_WINDOW_MS / 1000U);
+	run_ms(30 * SECOND + 500);
+	radio_ui_update(r);
+	zassert_equal(r->ui.ble_seconds, BLE_CONNECT_WINDOW_MS / 1000U - 30U);
+	connect_bonded();
+	radio_ui_update(r);
+	zassert_true(r->ui.phone_connected);
+	zassert_equal(r->ui.ble_seconds, 0, "no window once connected");
 }
 
 ZTEST(ble_service, test_alert_log_notifies_new_alert_and_reads_by_index)

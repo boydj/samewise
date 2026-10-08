@@ -45,9 +45,29 @@ static void reset_tuner(struct health *hs)
 {
 	hs->stats.tuner_resets++;
 	(void)hal_tuner_power(false);
+	hs->ui->band = HAL_TUNER_BAND_WB;
 	if (hal_tuner_power(true) == 0 && hal_tuner_set_band(HAL_TUNER_BAND_WB) == 0) {
 		(void)hal_tuner_tune(hs->tuner_khz != 0U ? hs->tuner_khz : hs->cfg.default_khz);
 	}
+}
+
+uint16_t health_hours_left(const struct hal_battery_status *b)
+{
+	if (b->charge == HAL_BATTERY_DISCHARGING && b->hours_left != HAL_BATTERY_HOURS_UNKNOWN) {
+		return b->hours_left;
+	}
+	return (uint16_t)((b->soc_percent * UI_STANDBY_HOURS_FULL + 50U) / 100U);
+}
+
+uint8_t health_signal_bars(int16_t snr_db, int16_t min_snr_db)
+{
+	int steps;
+
+	if (snr_db < min_snr_db) {
+		return 0;
+	}
+	steps = 1 + (snr_db - min_snr_db) / HEALTH_BAR_STEP_DB;
+	return (uint8_t)(steps > (int)UI_SIGNAL_BARS ? UI_SIGNAL_BARS : steps);
 }
 
 static void check_tuner(struct health *hs, int64_t now)
@@ -56,6 +76,9 @@ static void check_tuner(struct health *hs, int64_t now)
 	int err = hal_tuner_get_status(&st);
 
 	if (err == 0 && st.valid) {
+		hs->ui->freq_khz = st.freq_khz;
+		hs->ui->stereo = st.stereo;
+		hs->ui->signal_bars = health_signal_bars(st.snr_db, hs->cfg.min_snr_db);
 		hs->consecutive_faults = 0;
 		hs->last_tuner_ok_ms = now;
 		set_warning(hs, UI_WARN_TUNER_FAULT, false);
@@ -121,6 +144,8 @@ static void check_battery(struct health *hs, int64_t now)
 		return;
 	}
 	hs->ui->battery_percent = b.soc_percent;
+	hs->ui->charging = b.charge != HAL_BATTERY_DISCHARGING;
+	hs->ui->hours_left = health_hours_left(&b);
 	if (b.voltage_mv <= HEALTH_BATTERY_EMPTY_MV && b.charge == HAL_BATTERY_DISCHARGING) {
 		shut_down(hs);
 		return;

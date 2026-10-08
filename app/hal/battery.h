@@ -24,7 +24,12 @@ struct hal_battery_status {
 	uint16_t voltage_mv; /* cell voltage */
 	enum hal_battery_charge charge;
 	bool temp_fault;     /* charger reported a temperature fault */
+	/** The fuel gauge's time to empty at the present discharge rate, or
+	 *  HAL_BATTERY_HOURS_UNKNOWN (no rate yet, or charging). */
+	uint16_t hours_left;
 };
+
+#define HAL_BATTERY_HOURS_UNKNOWN 0xFFFFU
 
 /** Read the fuel gauge and charger. */
 int hal_battery_get(struct hal_battery_status *status);

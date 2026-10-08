@@ -22,6 +22,18 @@ These images come from the design canvas ([Pocket WX Radio](https://claude.ai/ar
 
 ![Top edge with headphone jack, USB-C and lock switch; cross-section showing display, board, tuner and Bluetooth module, battery and ferrite rod layers.](docs/images/edges.png)
 
+## The screens, as built
+
+The firmware draws every screen from its screen model in the design's VT323 font, and the tests hold each one to a golden image. These are those images, in the LCD's colours. The six screens of the design:
+
+![Standby on 162.550 MHz, listening to FM 98.7 with presets, a Tornado Warning alert, No Signal, Low Battery at 8 percent, and the pairing passkey.](docs/images/screens-designed.png)
+
+And the ones the design didn't cover: the other warnings, ALERTS OFF, RESTARTED, the Bluetooth windows and confirmations, a test alert, the longest event name with 31 counties, AM, and travel mode while charging.
+
+![Twelve more screens: No Test, Tuner Fault, Alerts Off, Restarted, Connect, Pair Phone, Replace Phone, Factory Reset, a Practice/Demo test alert, Missing and Endangered Persons with 31 counties, AM 1010 kHz, and standby in travel mode while charging.](docs/images/screens-new.png)
+
+All 26 are in [`docs/images/screens`](docs/images/screens); the spec's [Screens](docs/firmware-spec.md#screens) section says what each shows.
+
 ## Status
 
 | Milestone | Scope | State |
@@ -30,7 +42,8 @@ These images come from the design canvas ([Pocket WX Radio](https://claude.ai/ar
 | [2](docs/MILESTONE-2.md) | Matcher, alert manager, health supervisor, scenarios | Done |
 | [3](docs/MILESTONE-3.md) | Bluetooth settings service, bsim tests, macOS mock radio | Done |
 | [3.5](docs/MILESTONE-3.5.md) | XIAO nRF52840 build, size budget, Renode bench ([report](docs/xiao-bench.md)) | Done |
-| [App 1](docs/MILESTONE-APP-1.md) | iPhone setup app against the mock radio | In progress |
+| [App 1](docs/MILESTONE-APP-1.md) | iPhone setup app against the mock radio | Done, pairing checks wait for the board |
+| [3.6](docs/MILESTONE-3.6.md) | Every screen, display, battery and tuner drivers against emulated chips | In review |
 | 4 | Firmware on the XIAO hardware | Waiting for the board |
 
 [`docs/firmware-spec.md`](docs/firmware-spec.md) is the source of truth ([living version](https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac)). The decoder's noise tolerance is measured in [`docs/decoder-snr.md`](docs/decoder-snr.md).
@@ -42,7 +55,11 @@ app/                    firmware: main.c, app logic, services, HAL headers, driv
   services/same/        SAME decoder and parser (plain C99)
   services/match/       event matcher, filter, duplicates
   services/ble/         Bluetooth settings service; gatt_table.h is the GATT source of truth
-tests/                  ztest suites (twister on native_sim); tests/bsim on nrf52_bsim; tests/renode
+  services/gfx/         drawing and the VT323 bitmap fonts
+  src/app/screens.c     every screen, drawn from the screen model
+  drivers/              display, battery and tuner drivers, clock, watchdog, storage
+tests/                  ztest suites (twister on native_sim); tests/bsim on nrf52_bsim; tests/renode;
+                        tests/drivers against emulated chips; tests/display/screens golden images
 swift/GattModel/        Swift codec, TZ parser and radio model shared by the app and the mock
 swift/SamewiseKit/      the iPhone app's logic, tested with swift test
 ios/Samewise/           the iPhone app (SwiftUI, XcodeGen); see its README
@@ -50,6 +67,7 @@ tools/mock-peripheral/  macOS stand-in for the radio over Bluetooth
 tools/samegen/          synthetic SAME generator
 tools/vectors/          WAV test vectors (git LFS) with JSON sidecars
 tools/counties/         builds the app's county table from the Census FIPS lists
+tools/fonts/            VT323 and the font generator; tools/display: goldens and PNG renders
 docs/                   spec, milestones, reports, gatt.json
 ```
 
