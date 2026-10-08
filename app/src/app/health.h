@@ -51,6 +51,8 @@ extern "C" {
 #define HEALTH_BATTERY_EMPTY_MV 3300U
 /** Hysteresis before a battery warning clears (percent above its threshold). */
 #define HEALTH_BATTERY_HYST     5U
+/** Each signal bar above the first is this much more SNR (screens). */
+#define HEALTH_BAR_STEP_DB      5
 
 struct health_config {
 	/** Signal quality threshold; placeholder until bring-up measurements. */
@@ -112,6 +114,20 @@ void health_note_rwt(void *hs);
 
 /** Resets after a watchdog timeout, read back from storage. */
 uint32_t health_logged_watchdog_resets(void);
+
+struct hal_battery_status;
+
+/**
+ * Hours of battery left: the fuel gauge's time to empty while discharging,
+ * or charge x UI_STANDBY_HOURS_FULL until it has a rate (and while charging).
+ */
+uint16_t health_hours_left(const struct hal_battery_status *b);
+
+/**
+ * Signal bars for the screens: none below min_snr_db (the no-signal
+ * threshold), then one more every HEALTH_BAR_STEP_DB, up to UI_SIGNAL_BARS.
+ */
+uint8_t health_signal_bars(int16_t snr_db, int16_t min_snr_db);
 
 #ifdef __cplusplus
 }

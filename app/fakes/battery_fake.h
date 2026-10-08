@@ -33,6 +33,9 @@ void battery_fake_set(uint8_t soc_percent, uint16_t voltage_mv, enum hal_battery
 /** Follow points (sorted by time); holds the last point afterwards. */
 void battery_fake_script(const struct battery_point *points, size_t n);
 
+/** The fuel gauge's time to empty (HAL_BATTERY_HOURS_UNKNOWN, the default, for none). */
+void battery_fake_set_hours(uint16_t hours_left);
+
 bool battery_fake_shipped(void);
 int64_t battery_fake_ship_ms(void);
 

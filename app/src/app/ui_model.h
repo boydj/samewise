@@ -1,10 +1,11 @@
 /*
- * Screen model: what the display should show, as data. Tests assert on it;
- * drawing pixels from it comes in a later milestone.
+ * Screen model: what the display should show, as data. Tests assert on it,
+ * and app/screens.c draws it.
  *
- * The alert manager fills the alert fields and the health supervisor the
- * warnings, the Bluetooth service its prompts; ui_model_refresh() then picks
- * the screen by precedence: ALERTS OFF, alert, Bluetooth, RESTARTED,
+ * The alert manager fills the alert fields, the health supervisor the
+ * warnings, battery and tuner signal, the Bluetooth service its prompts, and
+ * radio_ui_update() the rest (settings, log, time); ui_model_refresh() then
+ * picks the screen by precedence: ALERTS OFF, alert, Bluetooth, RESTARTED,
  * warning, listening, standby.
  */
 
@@ -40,6 +41,13 @@ enum ui_warning {
 	UI_WARN_TUNER_FAULT = 1U << 4,
 };
 
+#define UI_RDS_MAX            64U
+#define UI_SIGNAL_BARS        4U
+#define UI_VOLUME_UNKNOWN     0xFFU
+#define UI_HOURS_UNKNOWN      0xFFFFU
+/** Standby hours on a full charge, before the fuel gauge has a rate (spec: 5-6 days). */
+#define UI_STANDBY_HOURS_FULL 132U
+
 struct ui_model {
 	enum ui_screen screen;
 
@@ -64,6 +72,31 @@ struct ui_model {
 	bool restarted;
 	bool alerts_off;
 	uint8_t battery_percent;
+
+	/* Battery time left, from the health supervisor: the fuel gauge's time to
+	 * empty, or charge x UI_STANDBY_HOURS_FULL until it has a rate. */
+	uint16_t hours_left;
+	bool charging;
+
+	/* Tuner, from the health supervisor (band from whoever sets it). */
+	uint8_t band;        /* enum hal_tuner_band */
+	uint32_t freq_khz;   /* 0 until the tuner reports */
+	bool stereo;
+	uint8_t signal_bars; /* 0-UI_SIGNAL_BARS, from SNR (see health.c) */
+
+	/* From radio_ui_update(). */
+	char rds[UI_RDS_MAX + 1]; /* FM radio text, "" if none */
+	uint8_t preset;           /* 1-based station preset matching the frequency, 0 none */
+	uint8_t volume;           /* UI_VOLUME_UNKNOWN until the radio UI sets it */
+	bool travel;              /* travel counties are active */
+	uint8_t county_count;     /* active list; 0 = every location */
+	uint8_t filter;           /* enum filter_preset */
+	char last_event[4];       /* newest logged header's event code, "" if none */
+	int64_t last_local_s;     /* when it was received, local time; -1 if unknown */
+	bool phone_connected;
+	uint16_t ble_seconds;     /* left in the window or confirmation shown */
+	int64_t uptime_ms;        /* when radio_ui_update() ran */
+	int64_t local_s;          /* local time then, -1 while the clock is unset */
 
 	/* From the Bluetooth service. */
 	uint8_t ble_screen; /* enum ble_screen; 0 = nothing to show */

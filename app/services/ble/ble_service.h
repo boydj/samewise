@@ -180,6 +180,9 @@ void ble_poll_status(struct ble *b);
 /** A new alert log entry was stored: notify it. */
 void ble_log_added(struct ble *b);
 
+/** Whole seconds, rounded up, left in the window or confirmation on screen; 0 if none. */
+uint16_t ble_screen_seconds(const struct ble *b, int64_t now_ms);
+
 #ifdef __cplusplus
 }
 #endif

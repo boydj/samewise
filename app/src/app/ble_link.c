@@ -29,7 +29,7 @@ static uint8_t tuned_channel(const struct radio *r)
 static void read_status(const struct radio *r, struct codec_status *st)
 {
 	st->battery_percent = r->ui.battery_percent;
-	st->hours_left = BLE_LINK_HOURS_UNKNOWN;
+	st->hours_left = r->ui.hours_left;
 	st->snr_db = clamp8(r->health.snr_db);
 	st->rssi_dbuv = clamp8(r->health.rssi_dbuv);
 	st->channel = tuned_channel(r);

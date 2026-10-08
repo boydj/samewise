@@ -13,9 +13,6 @@
 extern "C" {
 #endif
 
-/** Hours left until the power manager estimates them (spec: Status). */
-#define BLE_LINK_HOURS_UNKNOWN 0xFFFFU
-
 /** Operations for ble_init(); user is the struct radio. */
 extern const struct ble_app_ops ble_link_ops;
 

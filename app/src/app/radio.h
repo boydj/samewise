@@ -44,6 +44,8 @@ struct radio {
 	struct ble ble;
 	uint32_t idle_samples; /* accounted by radio_idle_audio(), never decoded */
 	uint32_t settings_errors;
+	uint32_t ui_log_seen; /* alert_log_appended() when ui.last_event was read */
+	int64_t ui_last_utc;  /* that entry's received time, -1 if none or unknown */
 	const struct radio_trace *trace;
 };
 
@@ -82,6 +84,13 @@ void radio_low_priority(struct radio *r);
 
 /** Frequency in kHz for a weather channel 1-7. */
 uint32_t radio_weather_khz(uint8_t channel);
+
+/**
+ * Fill the screen model's fields that come from settings, the alert log, the
+ * clock and Bluetooth, then pick the screen. Low priority (reads the log
+ * from storage when it has grown); the UI thread calls it before drawing.
+ */
+void radio_ui_update(struct radio *r);
 
 #ifdef __cplusplus
 }

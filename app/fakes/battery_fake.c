@@ -21,7 +21,13 @@ void battery_fake_init(void)
 	s.fixed.soc_percent = 100;
 	s.fixed.voltage_mv = 4100;
 	s.fixed.charge = HAL_BATTERY_DISCHARGING;
+	s.fixed.hours_left = HAL_BATTERY_HOURS_UNKNOWN;
 	s.ship_ms = -1;
+}
+
+void battery_fake_set_hours(uint16_t hours_left)
+{
+	s.fixed.hours_left = hours_left;
 }
 
 void battery_fake_set(uint8_t soc_percent, uint16_t voltage_mv, enum hal_battery_charge charge)

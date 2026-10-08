@@ -60,6 +60,7 @@ config WX_APP_LOGIC
 	select WX_SAME
 	select WX_MATCH
 	select WX_BLE_SERVICE
+	select WX_GFX
 
 menu "Fakes"
 	comment "Stand-ins for interfaces; those reading host files need native_sim."
