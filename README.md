@@ -43,7 +43,7 @@ All 26 are in [`docs/images/screens`](docs/images/screens); the spec's [Screens]
 | [3](docs/MILESTONE-3.md) | Bluetooth settings service, bsim tests, macOS mock radio | Done |
 | [3.5](docs/MILESTONE-3.5.md) | XIAO nRF52840 build, size budget, Renode bench ([report](docs/xiao-bench.md)) | Done |
 | [App 1](docs/MILESTONE-APP-1.md) | iPhone setup app against the mock radio | Done, pairing checks wait for the board |
-| [3.6](docs/MILESTONE-3.6.md) | Every screen, display, battery and tuner drivers against emulated chips | In review |
+| [3.6](docs/MILESTONE-3.6.md) | Every screen, display, battery and tuner drivers against emulated chips | Done |
 | 4 | Firmware on the XIAO hardware | Waiting for the board |
 
 [`docs/firmware-spec.md`](docs/firmware-spec.md) is the source of truth ([living version](https://claude.ai/code/artifact/58a9a1a9-ee83-45a4-9799-a0010c75ddac)). The decoder's noise tolerance is measured in [`docs/decoder-snr.md`](docs/decoder-snr.md).
