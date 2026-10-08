@@ -136,6 +136,13 @@ config WX_DRV_STORAGE
 	bool "storage on Zephyr settings"
 	depends on SETTINGS
 
+config WX_DRV_BATTERY
+	bool "battery on the MAX17048 fuel gauge and BQ25180 charger"
+	depends on FUEL_GAUGE && CHARGER && I2C
+	help
+	  hal/battery.h on Zephyr's maxim,max17048 and ti,bq25180 drivers, plus
+	  the charger's temperature status and shutdown mode by register.
+
 config WX_DRV_DISPLAY
 	bool "display on Zephyr's display API (zephyr,display)"
 	depends on DISPLAY
