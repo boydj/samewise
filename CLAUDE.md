@@ -21,17 +21,22 @@ app/
   services/match/   event matcher, filter, duplicates (milestone 2)
   services/power/   power manager (milestone 2)
   services/ble/     Bluetooth settings service (milestone 3)
+  services/gfx/     drawing and the VT323 bitmap fonts (plain C99)
   hal/              the ten interface headers
-  drivers/          real drivers (milestone 5)
+  drivers/          real drivers: clock, watchdog, storage, display, battery, tuner
   fakes/            native_sim fakes
   boards/           board overlays
-tests/              ztest suites, run with twister on native_sim; tests/bsim on nrf52_bsim
+tests/              ztest suites, run with twister on native_sim; tests/bsim on nrf52_bsim;
+                    tests/drivers against emulated chips; tests/display/screens golden images
+dts/bindings/       devicetree bindings for our own chips (skyworks,si4743)
 swift/GattModel/    shared Swift codec, TZ parser and radio model (app and mock)
 ios/Samewise/       iPhone setup app (SwiftUI)
 tools/mock-peripheral/  macOS stand-in for the radio over Bluetooth
 tools/samegen/      synthetic SAME generator (Python)
 tools/vectors/      WAV test vectors (git LFS) with JSON sidecars
 tools/counties/     the app's county table, built from the Census FIPS lists
+tools/fonts/        VT323 (OFL) and the generator for services/gfx's fonts
+tools/display/      golden-image updater and PNG renders of the screens
 docs/               spec, milestones, decoder reports
 ```
 
@@ -43,6 +48,8 @@ west build -b native_sim app -p auto
 west twister -T tests -p native_sim
 python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/samegen/samegen.py --help
+python3 tools/fonts/build_fonts.py --check            # the generated fonts are current
+tools/display/update_goldens.sh   # after a deliberate screen change: rewrite the goldens, review them
 tests/bsim/run.sh    # Bluetooth on nrf52_bsim; needs BabbleSim, see below
 west build -b xiao_ble/nrf52840 app -d build-xiao      # needs the Zephyr SDK's ARM toolchain
 python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf --json build-xiao/size.json
@@ -71,6 +78,8 @@ iPhone app: SwiftUI, iOS 17, in `ios/Samewise` (XcodeGen spec; the project isn't
 - Single-precision float is fine (Cortex-M4F); no double in hot loops.
 - Every behaviour in the spec gets a test with the code. A bug fix starts with a failing test.
 - Test vectors are generated, never hand-edited: regenerate them from `tools/samegen/`.
+- Golden screen images and fonts are generated too: `tools/display/update_goldens.sh` and `tools/fonts/build_fonts.py`. Review every changed image before committing.
+- Chip drivers cite their datasheet or programming guide section for every register, command and bit; a test emulator follows the same document.
 - The GATT table will live in one header (`services/ble/gatt_table.h`) as the single source of truth, with `docs/gatt.json` generated from it for the iOS mock.
 - Never add code that transmits SAME audio over the air.
 - Pin the nRF Connect SDK version in `west.yml`; don't bump it without asking.

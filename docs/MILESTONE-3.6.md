@@ -27,17 +27,26 @@ Done when every check below passes in CI, renders of every screen sit next to th
 
 ## Checks
 
-- [ ] `build_fonts.py --check` passes in CI, and the generated font matches VT323 at each size
-- [ ] Every `services/gfx/` function is unit tested, including clipping at all four edges
-- [ ] Every screen in task 5 has a golden image, and the test fails on any changed pixel
-- [ ] Text never overflows: the longest event name in the table, a 64-character RDS text and 31 matched counties all fit their screens
-- [ ] Standby redraws at most once a minute; a change of screen or data redraws at once
-- [ ] An alert decoded during a slow display flush still sounds without waiting for it
-- [ ] The display driver's conversion to the panel's format is tested
-- [ ] `hal/battery.h` on the MAX17048 and BQ25180 drivers passes against the emulators, including temperature fault and ship mode
-- [ ] `hal/tuner.h` on the Si4743 driver passes against the emulator: each band, tune limits, seek found and not found, status, mute, RDS, I2C errors as -EIO
-- [ ] Renders of every screen are in the README next to the design
+- [x] `build_fonts.py --check` passes in CI, and the generated font matches VT323 at each size
+- [x] Every `services/gfx/` function is unit tested, including clipping at all four edges
+- [x] Every screen in task 5 has a golden image, and the test fails on any changed pixel
+- [x] Text never overflows: the longest event name in the table, a 64-character RDS text and 31 matched counties all fit their screens
+- [x] Standby redraws at most once a minute; a change of screen or data redraws at once
+- [x] An alert decoded during a slow display flush still sounds without waiting for it
+- [x] The display driver's conversion to the panel's format is tested
+- [x] `hal/battery.h` on the MAX17048 and BQ25180 drivers passes against the emulators, including temperature fault and ship mode
+- [x] `hal/tuner.h` on the Si4743 driver passes against the emulator: each band, tune limits, seek found and not found, status, mute, RDS, I2C errors as -EIO
+- [x] Renders of every screen are in the README next to the design
 - [ ] The XIAO build still fits its flash and RAM budget
+
+## Decided along the way
+
+- Battery time left is the MAX17048's time to empty; until it has a rate, and while charging, charge × 132 hours. Bluetooth Status reports the same number (it was always unknown).
+- Battery off is the BQ25180's shutdown mode, woken only by USB-C (15 nA), not its ship mode with button wake (3.2 µA).
+- The AN332 revision Skyworks publishes today (Rev. A) dropped the weather-band chapter; the driver follows Rev. 1.2, whose section 5.4 covers the Si4742/43.
+- The Si474x has no crystal option, so the board must feed the tuner a 32.768 kHz RCLK (new open question in the spec).
+- A Bluetooth window can't be cancelled with a key (the service lets it run its course), so the window screens show the seconds left instead of the design's "any key cancels".
+- A tune returns once the chip accepts it; the next status read completes it, so the health supervisor never holds the app lock through a 250 ms weather-band tune.
 
 ## Out of scope
 
