@@ -1,3 +1,6 @@
-# Python packages for tools/samegen and tools/vectors (numpy and scipy only).
+# Python packages for tools/samegen, tools/vectors and tools/fonts.
 numpy>=1.26
 scipy>=1.11
+# tools/fonts: the wheel bundles FreeType, which decides the exact glyph bits,
+# so build_fonts.py --check needs this exact version.
+pillow==12.3.0

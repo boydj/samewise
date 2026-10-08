@@ -44,6 +44,12 @@ config WX_BLE_ZEPHYR
 	  ages keys on use). Leave BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING off: it
 	  would make that the oldest paired instead.
 
+config WX_GFX
+	bool "Drawing and bitmap fonts"
+	help
+	  services/gfx: rectangles, lines and VT323 bitmap text in a 1-bit
+	  framebuffer. Plain C99.
+
 config WX_POWER
 	bool "Power manager"
 	help
