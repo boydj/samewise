@@ -2,6 +2,7 @@
 import CoreBluetooth
 import Foundation
 import GattModel
+import os
 
 /// The radio over CoreBluetooth. Scans for the settings service (the radio
 /// advertises only while a connect or pairing window is open), connects to
@@ -24,6 +25,10 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
         }
     }
     public var onEvent: (LinkEvent) -> Void = { _ in }
+
+    /// What iOS reported at each step, for Xcode's console and Console.app
+    /// (subsystem samewise, category bluetooth).
+    private static let log = Logger(subsystem: "samewise", category: "bluetooth")
 
     private let serviceUUID: CBUUID
     private let uuids: [CBUUID: Chr]
@@ -113,6 +118,7 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
     }
 
     private func fail(_ error: RadioError) {
+        Self.log.error("Link failed: \(String(describing: error), privacy: .public)")
         central?.stopScan()
         if let peripheral {
             central?.cancelPeripheralConnection(peripheral)
@@ -137,6 +143,8 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
 
     /// What iOS reported, as the app explains it.
     static func radioError(_ error: Error) -> RadioError {
+        let ns = error as NSError
+        log.error("iOS error \(ns.domain, privacy: .public) \(ns.code): \(ns.localizedDescription, privacy: .public)")
         if let e = error as? CBATTError {
             switch e.code {
             case .insufficientAuthentication, .insufficientEncryption, .insufficientEncryptionKeySize:
@@ -157,7 +165,6 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
                 return .disconnected
             }
         }
-        let ns = error as NSError
         if ns.domain == CBATTErrorDomain {
             return .att(UInt8(truncatingIfNeeded: ns.code))
         }
@@ -168,6 +175,7 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
 
     private func discovered(_ p: CBPeripheral) {
         guard state == .searching, let central else { return }
+        Self.log.info("Found \(p.name ?? "unnamed", privacy: .public); connecting")
         central.stopScan()
         peripheral = p
         p.delegate = self
@@ -185,6 +193,7 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
             fail(.att(AttError.readNotPermitted.code))  // not the radio's service as we know it
             return
         }
+        Self.log.info("Found the service; subscribing, which makes iOS pair")
         awaitingSubscription = Set(Chr.subscribed)
         for chr in Chr.subscribed {
             peripheral?.setNotifyValue(true, for: characteristics[chr]!)
@@ -193,9 +202,11 @@ public final class CoreBluetoothLink: NSObject, RadioLink {
 
     private func subscribed(_ chr: Chr, error: Error?) {
         if let error {
+            Self.log.error("Subscribing to \(chr.rawValue, privacy: .public) failed")
             fail(Self.radioError(error))
             return
         }
+        Self.log.info("Subscribed to \(chr.rawValue, privacy: .public)")
         awaitingSubscription.remove(chr)
         if awaitingSubscription.isEmpty && state == .connecting {
             state = .connected
