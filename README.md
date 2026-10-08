@@ -72,7 +72,7 @@ tests/bsim/run.sh                                      # Bluetooth on nrf52_bsim
 west build -b xiao_ble/nrf52840 app -d build-xiao      # needs the Zephyr SDK's ARM toolchain
 (cd swift/GattModel && swift test)                     # also runs on Linux
 (cd swift/SamewiseKit && swift test)                   # also runs on Linux
-(cd tools/mock-peripheral && swift run MockPeripheral) # macOS
+(cd tools/mock-peripheral && swift run MockPeripheral --open) # macOS; --open for the iPhone
 (cd ios/Samewise && xcodegen)                          # macOS; then open Samewise.xcodeproj
 ```
 

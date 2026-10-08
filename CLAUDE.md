@@ -49,7 +49,7 @@ python3 tools/size/size_report.py build-xiao/app/zephyr/zephyr.elf --json build-
 tests/renode/run.sh <renode dir> build-xiao renode-out [native_sim console log]
 (cd swift/GattModel && swift test)                     # also runs on Linux
 (cd swift/SamewiseKit && swift test)                   # the app's logic; also runs on Linux
-(cd tools/mock-peripheral && swift run MockPeripheral) # macOS
+(cd tools/mock-peripheral && swift run MockPeripheral --open) # macOS; --open for the iPhone
 (cd ios/Samewise && xcodegen)                          # macOS; then open Samewise.xcodeproj
 ```
 

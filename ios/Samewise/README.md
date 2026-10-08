@@ -41,7 +41,9 @@ presses the radio's keys and injects events. On a phone, launch with
 `-fakeBonded` set its starting state.
 
 Against the real Bluetooth stack, use the Mac mock
-(`tools/mock-peripheral`, `swift run MockPeripheral`).
+(`tools/mock-peripheral`, `swift run MockPeripheral --open`). iOS doesn't
+pair with a Mac, so the mock runs unencrypted; pairing and the stale-bond
+guidance are tested against the radio.
 
 ## Tests
 

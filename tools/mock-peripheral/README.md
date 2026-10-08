@@ -12,7 +12,8 @@ which the iPhone app uses too; this package adds only CoreBluetooth and the
 keyboard.
 
 ```
-swift run MockPeripheral                 # uses GattModel's copy of docs/gatt.json
+swift run MockPeripheral --open          # for the iPhone app: no encryption (see Pairing below)
+swift run MockPeripheral                 # encryption required, as on the radio
 swift run MockPeripheral path/to/gatt.json
 (cd ../../swift/GattModel && swift test) # the model; runs on Linux too
 ```
@@ -46,13 +47,17 @@ Keyboard commands (type `?` for the list):
 
 ## Differences from the radio
 
-- **Pairing.** Every characteristic requires encryption, so iOS still pairs
-  and bonds before it can read or write anything. But macOS, not this
-  program, controls pairing: there is no passkey on a screen, no pairing or
-  connect window, no two-bond limit, and advertising is always on. Test
-  the passkey flow, the windows and bond replacement against the firmware
+- **Pairing.** iOS doesn't pair with the mock. By default every
+  characteristic requires encryption, as on the radio, but macOS answers an
+  unencrypted request with Insufficient Encryption (ATT error 15), and iOS
+  passes that to the app without starting pairing; the radio answers
+  Insufficient Authentication (error 5), which makes iOS pair. So run the
+  mock with `--open` for the app: nothing is encrypted and there is no
+  bond. There is also no passkey, no pairing or connect window, no two-bond
+  limit, and advertising is always on. Test the passkey flow, the windows,
+  bond replacement and the stale-bond guidance against the firmware
   (`tests/bsim/ble` runs them in simulation) or the hardware.
-- **Factory reset** clears the settings and the log but can't remove the
-  phone's bond; the radio unpairs every phone.
+- **Factory reset** clears the settings and the log but doesn't unpair or
+  disconnect the phone; the radio unpairs every phone.
 - Writing Time stores the clock and time zone but doesn't drive a clock.
 - Mode doesn't tune anything; Status reports the chosen channel.
