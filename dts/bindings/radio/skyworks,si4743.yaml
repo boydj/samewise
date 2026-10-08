@@ -1,0 +1,14 @@
+description: |
+  Skyworks (Silicon Labs) Si4743 AM/FM/WB receiver on its 2-wire bus
+  (AN332 section 6.1: address 0x11 with SEN low, 0x63 with SEN high).
+  The board feeds it a 32.768 kHz reference on RCLK: the Si474x has no
+  crystal oscillator option (AN332, POWER_UP: XOSCEN must be 0).
+
+compatible: "skyworks,si4743"
+
+include: i2c-device.yaml
+
+properties:
+  reset-gpios:
+    type: phandle-array
+    description: RST, active low. Optional; without it the driver never resets the chip.

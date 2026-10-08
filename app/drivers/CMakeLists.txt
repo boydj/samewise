@@ -1,13 +1,14 @@
 # Real implementations of the hal/ interfaces on Zephyr subsystems, and the
 # embedded SAME clip that stands in for the ADC until milestone 4.
 if(CONFIG_WX_DRV_CLOCK OR CONFIG_WX_DRV_WATCHDOG OR CONFIG_WX_DRV_STORAGE OR CONFIG_WX_AUDIO_CLIP OR
-   CONFIG_WX_DRV_DISPLAY OR CONFIG_WX_DRV_BATTERY)
+   CONFIG_WX_DRV_DISPLAY OR CONFIG_WX_DRV_BATTERY OR CONFIG_WX_DRV_TUNER)
   zephyr_library_named(wx_drivers)
   zephyr_library_sources_ifdef(CONFIG_WX_DRV_CLOCK clock_zephyr.c)
   zephyr_library_sources_ifdef(CONFIG_WX_DRV_WATCHDOG watchdog_zephyr.c)
   zephyr_library_sources_ifdef(CONFIG_WX_DRV_STORAGE storage_settings.c)
   zephyr_library_sources_ifdef(CONFIG_WX_DRV_DISPLAY display_zephyr.c)
   zephyr_library_sources_ifdef(CONFIG_WX_DRV_BATTERY battery_zephyr.c)
+  zephyr_library_sources_ifdef(CONFIG_WX_DRV_TUNER tuner_si4743.c)
 endif()
 
 if(CONFIG_WX_AUDIO_CLIP)

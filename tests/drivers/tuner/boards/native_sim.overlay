@@ -1,0 +1,8 @@
+/* The tuner on native_sim's emulated I2C bus, SEN low (AN332 6.1: 0x11). */
+&i2c0 {
+	si4743: si4743@11 {
+		compatible = "skyworks,si4743";
+		reg = <0x11>;
+		status = "okay";
+	};
+};

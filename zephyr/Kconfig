@@ -143,6 +143,13 @@ config WX_DRV_BATTERY
 	  hal/battery.h on Zephyr's maxim,max17048 and ti,bq25180 drivers, plus
 	  the charger's temperature status and shutdown mode by register.
 
+config WX_DRV_TUNER
+	bool "tuner on the Si4743 over I2C"
+	depends on I2C
+	help
+	  hal/tuner.h on a skyworks,si4743 node: AN332's commands for FM, AM
+	  and the weather band, signal status, mute and RDS radio text.
+
 config WX_DRV_DISPLAY
 	bool "display on Zephyr's display API (zephyr,display)"
 	depends on DISPLAY

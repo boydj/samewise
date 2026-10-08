@@ -112,6 +112,9 @@ int hal_tuner_seek(bool up, uint32_t *found_khz)
 	if (!s.powered) {
 		return -EIO;
 	}
+	if (s.band == HAL_TUNER_BAND_WB) {
+		return -ENOTSUP; /* as on the Si4743: no weather-band seek */
+	}
 	*found_khz = s.freq_khz;
 	return 0;
 }
