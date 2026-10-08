@@ -36,9 +36,9 @@ UI tests on the simulator with the fake link:
 
 Manual on your iPhone with the Mac mock (`swift run MockPeripheral --open`):
 
-- [ ] Connects; settings writes appear in the mock's state
-- [ ] `a TOR <code>` in the mock shows up in the alert log; `b` and `s` update the home screen
-- [ ] Test alert and factory reset (confirm with `y`, cancel with `n`) behave as on the radio
+- [x] Connects; settings writes appear in the mock's state
+- [x] `a TOR <code>` in the mock shows up in the alert log; `b` and `s` update the home screen
+- [x] Test alert and factory reset (confirm with `y`, cancel with `n`) behave as on the radio
 
 iOS doesn't pair with the Mac mock: with encryption required, macOS answers Insufficient Encryption (ATT error 15) and iOS reports it to the app without starting pairing (the radio answers Insufficient Authentication, which makes iOS pair). So the mock runs open, and these two checks wait for the XIAO in firmware milestone 4. Until then the radio's side is covered by `tests/bsim/ble` and the app's by the fake link's tests.
 
